@@ -130,7 +130,7 @@ public abstract class TitleScreenMixin extends Screen {
 			menuTop = vanillaMenuButtons.stream().mapToInt(AbstractWidget::getY).min().orElse(menuTop);
 			menuBottom = vanillaMenuButtons.stream().mapToInt(AbstractWidget::getBottom).max().orElse(menuBottom);
 		} else if (ModMenuIntegration.hasInsertedRow(MenuArea.MAIN_MENU) && insertedRowY != Integer.MAX_VALUE) {
-			moveButtonsBelowInsertedRow(vanillaMenuButtons, insertedRowY, insertedRowY + 24);
+			moveButtonsBelowInsertedRow(vanillaMenuButtons, insertedRowY, insertedRowY + 24 + MAIN_MENU_ICON_ROW_GAP);
 			menuTop = vanillaMenuButtons.stream().mapToInt(AbstractWidget::getY).min().orElse(menuTop);
 			menuBottom = vanillaMenuButtons.stream().mapToInt(AbstractWidget::getBottom).max().orElse(menuBottom);
 		}
