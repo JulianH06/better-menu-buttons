@@ -56,10 +56,17 @@ public abstract class TitleScreenMixin extends Screen {
 		this.better_menu_buttons$configButton.setTooltip(Tooltip.create(Component.translatable("better-menu-buttons.options_button")));
 	}
 
-	@Inject(method = "extractRenderState", at = @At("HEAD"))
+	@Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true)
 	private void better_menu_buttons$layoutFriendsButtonAfterInit(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float deltaTicks, CallbackInfo callbackInfo) {
 		int modMenuLayoutState = ModMenuIntegration.buttonLayoutState(MenuArea.MAIN_MENU);
-		if (this.better_menu_buttons$layoutApplied && this.better_menu_buttons$modMenuLayoutState == modMenuLayoutState) {
+		if (this.better_menu_buttons$layoutApplied) {
+			if (this.better_menu_buttons$modMenuLayoutState == modMenuLayoutState) {
+				return;
+			}
+			this.better_menu_buttons$modMenuLayoutState = modMenuLayoutState;
+			this.better_menu_buttons$layoutApplied = false;
+			this.rebuildWidgets();
+			callbackInfo.cancel();
 			return;
 		}
 
@@ -73,11 +80,13 @@ public abstract class TitleScreenMixin extends Screen {
 			moveableButtons.put(MenuButton.FRIENDS, this.friends);
 		}
 		List<AbstractWidget> vanillaMenuButtons = new ArrayList<>();
+		List<Integer> iconRowYs = new ArrayList<>();
 
 		int menuLeft = this.width / 2 - VANILLA_MENU_WIDTH / 2;
 		int menuRight = menuLeft + VANILLA_MENU_WIDTH;
 		int menuTop = Integer.MAX_VALUE;
 		int menuBottom = 0;
+		int insertedRowY = Integer.MAX_VALUE;
 		for (GuiEventListener child : this.children()) {
 			if (!(child instanceof AbstractWidget widget)) {
 				continue;
@@ -86,6 +95,12 @@ public abstract class TitleScreenMixin extends Screen {
 			MenuButton buttonId = buttonIdFor(widget);
 			if (buttonId != null) {
 				moveableButtons.put(buttonId, widget);
+			}
+			if (this.isIconRowWidget(widget, buttonId)) {
+				iconRowYs.add(widget.getY());
+			}
+			if (ModMenuIntegration.isModsRowButton(widget)) {
+				insertedRowY = Math.min(insertedRowY, widget.getY());
 			}
 
 			if (isTitleMenuButton(widget, menuLeft, menuRight)) {
@@ -110,7 +125,18 @@ public abstract class TitleScreenMixin extends Screen {
 			menuBottom -= MAIN_MENU_ICON_ROW_GAP;
 		}
 
-		SocialButtonLayout.apply(this.width, this.height, menuTop, menuBottom, MenuArea.MAIN_MENU, moveableButtons);
+		if (ModMenuIntegration.hasInsertedRow(MenuArea.MAIN_MENU) && BetterMenuButtonsConfig.hasVanillaIconRowButtons(MenuArea.MAIN_MENU) && insertedRowY != Integer.MAX_VALUE) {
+			moveButtonsBelowInsertedRow(vanillaMenuButtons, insertedRowY, insertedRowY + 48);
+			menuTop = vanillaMenuButtons.stream().mapToInt(AbstractWidget::getY).min().orElse(menuTop);
+			menuBottom = vanillaMenuButtons.stream().mapToInt(AbstractWidget::getBottom).max().orElse(menuBottom);
+		} else if (ModMenuIntegration.hasInsertedRow(MenuArea.MAIN_MENU) && insertedRowY != Integer.MAX_VALUE) {
+			moveButtonsBelowInsertedRow(vanillaMenuButtons, insertedRowY, insertedRowY + 24);
+			menuTop = vanillaMenuButtons.stream().mapToInt(AbstractWidget::getY).min().orElse(menuTop);
+			menuBottom = vanillaMenuButtons.stream().mapToInt(AbstractWidget::getBottom).max().orElse(menuBottom);
+		}
+
+		SocialButtonLayout.MenuGeometry geometry = SocialButtonLayout.geometry(MenuArea.MAIN_MENU, menuTop, menuBottom, menuRowYs(vanillaMenuButtons), iconRowY(iconRowYs));
+		SocialButtonLayout.apply(this.width, this.height, menuLeft, menuRight, geometry, MenuArea.MAIN_MENU, moveableButtons);
 	}
 
 	@Unique
@@ -127,6 +153,40 @@ public abstract class TitleScreenMixin extends Screen {
 				widget.setPosition(widget.getX(), widget.getY() - MAIN_MENU_ICON_ROW_GAP);
 			}
 		}
+	}
+
+	@Unique
+	private static void moveButtonsBelowInsertedRow(List<AbstractWidget> vanillaMenuButtons, int insertedRowY, int firstRowY) {
+		List<Integer> rows = vanillaMenuButtons.stream()
+				.map(AbstractWidget::getY)
+				.filter(y -> y > insertedRowY)
+				.distinct()
+				.sorted()
+				.toList();
+		if (rows.isEmpty()) {
+			return;
+		}
+		int originalFirstRowY = rows.getFirst();
+		for (AbstractWidget widget : vanillaMenuButtons) {
+			if (widget.getY() > insertedRowY) {
+				widget.setPosition(widget.getX(), firstRowY + widget.getY() - originalFirstRowY);
+			}
+		}
+	}
+
+	@Unique
+	private static List<Integer> menuRowYs(List<AbstractWidget> vanillaMenuButtons) {
+		return vanillaMenuButtons.stream().map(AbstractWidget::getY).toList();
+	}
+
+	@Unique
+	private Integer iconRowY(List<Integer> iconRowYs) {
+		return iconRowYs.stream().min(Integer::compareTo).orElse(null);
+	}
+
+	@Unique
+	private boolean isIconRowWidget(AbstractWidget widget, MenuButton buttonId) {
+		return widget == this.friends || (buttonId != null && widget.getWidth() <= 20);
 	}
 
 	@Unique

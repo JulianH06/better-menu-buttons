@@ -2,6 +2,7 @@ package com.julianh06.bettermenubuttons.config;
 
 import com.julianh06.bettermenubuttons.mixin.OptionsScreenAccessor;
 import com.julianh06.bettermenubuttons.compat.ModMenuIntegration;
+import com.julianh06.bettermenubuttons.layout.SocialButtonLayout;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -124,32 +125,32 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 	}
 
 	private void addMainMenuPreview(PreviewLayout layout) {
+		SocialButtonLayout.MenuGeometry geometry = this.previewGeometry(layout);
 		int menuLeft = layout.menuLeft();
-		int menuTop = layout.mainMenuTop();
-		this.addDecorativeButton(layout, "Singleplayer", menuLeft + layout.scaled(2), menuTop, layout.scaled(200));
-		this.addDecorativeButton(layout, "Multiplayer", menuLeft + layout.scaled(2), this.rawPreviewRowY(layout, menuTop, 1), layout.scaled(200));
-		this.addDecorativeButton(layout, "Realms", menuLeft + layout.scaled(2), this.rawPreviewRowY(layout, menuTop, 2), layout.scaled(200));
+		this.addDecorativeButton(layout, "Singleplayer", menuLeft + layout.scaled(2), geometry.rowY(0), layout.scaled(200));
+		this.addDecorativeButton(layout, "Multiplayer", menuLeft + layout.scaled(2), geometry.rowY(1), layout.scaled(200));
+		this.addDecorativeButton(layout, "Realms", menuLeft + layout.scaled(2), geometry.rowY(2), layout.scaled(200));
 		if (ModMenuIntegration.hasInsertedRow(MenuArea.MAIN_MENU)) {
-			this.addDecorativeButton(layout, "Mods", menuLeft + layout.scaled(2), this.rawPreviewRowY(layout, menuTop, 3), layout.scaled(200));
+			this.addDecorativeButton(layout, "Mods", menuLeft + layout.scaled(2), geometry.rowY(3), layout.scaled(200));
 		}
 
-		int bottomRowY = this.rawPreviewRowY(layout, menuTop, 4);
+		int bottomRowY = ModMenuIntegration.hasInsertedRow(MenuArea.MAIN_MENU) ? geometry.rowY(4) : this.rawPreviewRowY(layout, layout.mainMenuTop(), 4);
 		this.addDecorativeButton(layout, "Options", menuLeft + layout.scaled(2), bottomRowY, layout.halfButtonWidth());
 		this.addDecorativeButton(layout, "Quit", layout.menuRight() - layout.halfButtonWidth() - layout.scaled(2), bottomRowY, layout.halfButtonWidth());
 	}
 
 	private void addPauseMenuPreview(PreviewLayout layout) {
+		SocialButtonLayout.MenuGeometry geometry = this.previewGeometry(layout);
 		int menuLeft = layout.menuLeft();
-		int menuTop = layout.pauseMenuTop();
-		this.addDecorativeButton(layout, "Back to Game", menuLeft, menuTop, layout.menuWidth());
-		this.addDecorativeButton(layout, "Advancements", menuLeft, this.rawPreviewRowY(layout, menuTop, 1), layout.halfButtonWidth());
-		this.addDecorativeButton(layout, "Stats", layout.menuRight() - layout.halfButtonWidth(), this.rawPreviewRowY(layout, menuTop, 1), layout.halfButtonWidth());
+		this.addDecorativeButton(layout, "Back to Game", menuLeft, geometry.rowY(0), layout.menuWidth());
+		this.addDecorativeButton(layout, "Advancements", menuLeft, geometry.rowY(1), layout.halfButtonWidth());
+		this.addDecorativeButton(layout, "Stats", layout.menuRight() - layout.halfButtonWidth(), geometry.rowY(1), layout.halfButtonWidth());
 		if (ModMenuIntegration.hasInsertedRow(MenuArea.PAUSE_MENU)) {
-			this.addDecorativeButton(layout, "Mods", menuLeft, this.rawPreviewRowY(layout, menuTop, 2), layout.menuWidth());
+			this.addDecorativeButton(layout, "Mods", menuLeft, geometry.rowY(2), layout.menuWidth());
 		}
 
-		this.addDecorativeButton(layout, "Options", menuLeft, this.rawPreviewRowY(layout, menuTop, 3), layout.menuWidth());
-		this.addDecorativeButton(layout, "Disconnect", menuLeft, this.rawPreviewRowY(layout, menuTop, 4), layout.menuWidth());
+		this.addDecorativeButton(layout, "Options", menuLeft, geometry.rowY(3), layout.menuWidth());
+		this.addDecorativeButton(layout, "Disconnect", menuLeft, geometry.rowY(4), layout.menuWidth());
 	}
 
 	private void addOptionsMenuPreview(PreviewLayout layout) {
@@ -216,20 +217,20 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 	}
 
 	private void addPositionPreviewButtons(PreviewLayout layout) {
+		SocialButtonLayout.MenuGeometry geometry = this.previewGeometry(layout);
 		int menuLeft = this.selectedArea == MenuArea.OPTIONS_MENU ? layout.optionsMenuLeft() : layout.menuLeft();
 		int menuRight = this.selectedArea == MenuArea.OPTIONS_MENU ? layout.optionsMenuRight() : layout.menuRight();
-		int menuTop = this.menuTop(layout);
 		for (int row = 0; row < 5; row++) {
 			ButtonPosition leftPosition = ButtonPosition.row(row, true);
 			ButtonPosition rightPosition = ButtonPosition.row(row, false);
 			if (!BetterMenuButtonsConfig.isVanillaSocialSidePosition(this.selectedArea, leftPosition)) {
-				int rowY = this.previewRowY(layout, menuTop, row);
+				int rowY = geometry.rowY(row);
 				this.addSidePositionButtons(layout, leftPosition, menuLeft - ICON_SIZE - layout.scaled(GAP), rowY);
 				this.addSidePositionButtons(layout, rightPosition, menuRight + layout.scaled(GAP), rowY);
 			}
 		}
-		this.addVanillaIconPositionButtons(layout, menuTop);
-		this.addBelowMenuPositionButtons(layout, menuTop);
+		this.addVanillaIconPositionButtons(layout, geometry);
+		this.addBelowMenuPositionButtons(layout, geometry);
 		int topLeftX = layout.safeLeft() + layout.cornerInset();
 		int topRightX = layout.safeRight() - ICON_SIZE - layout.cornerInset();
 		this.addCornerPositionButtons(layout, ButtonPosition.TOP_LEFT, topLeftX, this.topCornerY(layout, topLeftX));
@@ -248,12 +249,12 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		this.addRenderableWidget(widget);
 	}
 
-	private void addVanillaIconPositionButtons(PreviewLayout layout, int menuTop) {
+	private void addVanillaIconPositionButtons(PreviewLayout layout, SocialButtonLayout.MenuGeometry geometry) {
 		if (BetterMenuButtonsConfig.vanillaIconSlotCount(this.selectedArea) <= 0) {
 			return;
 		}
 
-		int y = this.iconSlotY(layout, menuTop);
+		int y = this.iconSlotY(layout, geometry);
 		int count = this.countVanillaIconButtons();
 		ButtonPosition rowPosition = ButtonPosition.ICON_SLOT_1;
 		if (count == 0) {
@@ -264,11 +265,11 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		int leftX = this.dynamicIconRowX(layout, count, 0) - ICON_SIZE - GAP;
 		int rightX = this.dynamicIconRowX(layout, count, count - 1) + ICON_SIZE + GAP;
 		this.addPositionButton(layout, rowPosition, 0, leftX, y);
-		this.addPositionButton(layout, rowPosition, count, rightX, this.iconSlotY(layout, menuTop, count - 1));
+		this.addPositionButton(layout, rowPosition, count, rightX, this.iconSlotY(layout, geometry, count - 1));
 	}
 
-	private void addBelowMenuPositionButtons(PreviewLayout layout, int menuTop) {
-		int y = this.belowMenuY(layout, menuTop);
+	private void addBelowMenuPositionButtons(PreviewLayout layout, SocialButtonLayout.MenuGeometry geometry) {
+		int y = this.belowMenuY(layout, geometry);
 		int count = this.countButtonsAt(ButtonPosition.BELOW_MENU);
 		if (count == 0) {
 			this.addPositionButton(layout, ButtonPosition.BELOW_MENU, 0, layout.centerX() - ICON_SIZE / 2, y);
@@ -571,10 +572,6 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		}
 	}
 
-	private int previewRowY(PreviewLayout layout, int menuTop, int row) {
-		return this.rawPreviewRowY(layout, menuTop, row);
-	}
-
 	private int rawPreviewRowY(PreviewLayout layout, int menuTop, int row) {
 		int[] rows = switch (this.selectedArea) {
 			case PAUSE_MENU -> PAUSE_MENU_ROWS;
@@ -584,22 +581,17 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		return menuTop + layout.scaled(rows[Math.min(row, rows.length - 1)]);
 	}
 
-	private int belowMenuY(PreviewLayout layout, int menuTop) {
-		int y = this.rawPreviewRowY(layout, menuTop, 4) + layout.buttonHeight() + layout.scaled(GAP);
-		if (ModMenuIntegration.hasInsertedRow(this.selectedArea) && this.countVanillaIconButtons() > 0) {
-			int vanillaIconRows = this.rowsNeeded(layout, this.countVanillaIconButtons());
-			y += vanillaIconRows * (ICON_SIZE + layout.scaled(GAP));
-		}
-		return y;
+	private int belowMenuY(PreviewLayout layout, SocialButtonLayout.MenuGeometry geometry) {
+		return geometry.menuBottom() + layout.scaled(GAP);
 	}
 
 	private int[] coordinatesForPosition(PreviewLayout layout, ButtonPosition position, int index, int count) {
-		int menuTop = this.menuTop(layout);
+		SocialButtonLayout.MenuGeometry geometry = this.previewGeometry(layout);
 		int[] coordinates;
 		if (BetterMenuButtonsConfig.isVanillaIconSlot(this.selectedArea, position)) {
-			coordinates = new int[]{this.dynamicIconRowX(layout, count, index), this.iconSlotY(layout, menuTop, index)};
+			coordinates = new int[]{this.dynamicIconRowX(layout, count, index), this.iconSlotY(layout, geometry, index)};
 		} else if (position == ButtonPosition.BELOW_MENU) {
-			coordinates = new int[]{this.dynamicIconRowX(layout, count, index), this.rowWrappedY(layout, this.belowMenuY(layout, menuTop), index)};
+			coordinates = new int[]{this.dynamicIconRowX(layout, count, index), this.rowWrappedY(layout, this.belowMenuY(layout, geometry), index)};
 		} else if (position.isLeftSide()) {
 			coordinates = this.baseCoordinatesForPosition(layout, position);
 			coordinates[0] -= (count - index - 1) * (ICON_SIZE + GAP);
@@ -621,26 +613,26 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 	}
 
 	private int[] baseCoordinatesForPosition(PreviewLayout layout, ButtonPosition position) {
+		SocialButtonLayout.MenuGeometry geometry = this.previewGeometry(layout);
 		int menuLeft = this.selectedArea == MenuArea.OPTIONS_MENU ? layout.optionsMenuLeft() : layout.menuLeft();
 		int menuRight = this.selectedArea == MenuArea.OPTIONS_MENU ? layout.optionsMenuRight() : layout.menuRight();
-		int menuTop = this.menuTop(layout);
 		return switch (position) {
-			case LEFT_OF_MENU, LEFT_ROW_4 -> new int[]{menuLeft - ICON_SIZE - layout.scaled(GAP), this.previewRowY(layout, menuTop, 3)};
-			case RIGHT_OF_MENU, RIGHT_ROW_4 -> new int[]{menuRight + layout.scaled(GAP), this.previewRowY(layout, menuTop, 3)};
-			case LEFT_ROW_1 -> new int[]{menuLeft - ICON_SIZE - layout.scaled(GAP), this.previewRowY(layout, menuTop, 0)};
-			case RIGHT_ROW_1 -> new int[]{menuRight + layout.scaled(GAP), this.previewRowY(layout, menuTop, 0)};
-			case LEFT_ROW_2 -> new int[]{menuLeft - ICON_SIZE - layout.scaled(GAP), this.previewRowY(layout, menuTop, 1)};
-			case RIGHT_ROW_2 -> new int[]{menuRight + layout.scaled(GAP), this.previewRowY(layout, menuTop, 1)};
-			case LEFT_ROW_3 -> new int[]{menuLeft - ICON_SIZE - layout.scaled(GAP), this.previewRowY(layout, menuTop, 2)};
-			case RIGHT_ROW_3 -> new int[]{menuRight + layout.scaled(GAP), this.previewRowY(layout, menuTop, 2)};
-			case LEFT_ROW_5 -> new int[]{menuLeft - ICON_SIZE - layout.scaled(GAP), this.previewRowY(layout, menuTop, 4)};
-			case RIGHT_ROW_5 -> new int[]{menuRight + layout.scaled(GAP), this.previewRowY(layout, menuTop, 4)};
-			case ICON_SLOT_1 -> new int[]{this.iconSlotX(layout, 0), this.iconSlotY(layout, menuTop)};
-			case ICON_SLOT_2 -> new int[]{this.iconSlotX(layout, 1), this.iconSlotY(layout, menuTop)};
-			case ICON_SLOT_3 -> new int[]{this.iconSlotX(layout, 2), this.iconSlotY(layout, menuTop)};
-			case ICON_SLOT_4 -> new int[]{this.iconSlotX(layout, 3), this.iconSlotY(layout, menuTop)};
-			case ICON_SLOT_5 -> new int[]{this.iconSlotX(layout, 4), this.iconSlotY(layout, menuTop)};
-			case BELOW_MENU -> new int[]{layout.centerX() - ICON_SIZE / 2, this.belowMenuY(layout, menuTop)};
+			case LEFT_OF_MENU, LEFT_ROW_4 -> new int[]{menuLeft - ICON_SIZE - layout.scaled(GAP), geometry.rowY(3)};
+			case RIGHT_OF_MENU, RIGHT_ROW_4 -> new int[]{menuRight + layout.scaled(GAP), geometry.rowY(3)};
+			case LEFT_ROW_1 -> new int[]{menuLeft - ICON_SIZE - layout.scaled(GAP), geometry.rowY(0)};
+			case RIGHT_ROW_1 -> new int[]{menuRight + layout.scaled(GAP), geometry.rowY(0)};
+			case LEFT_ROW_2 -> new int[]{menuLeft - ICON_SIZE - layout.scaled(GAP), geometry.rowY(1)};
+			case RIGHT_ROW_2 -> new int[]{menuRight + layout.scaled(GAP), geometry.rowY(1)};
+			case LEFT_ROW_3 -> new int[]{menuLeft - ICON_SIZE - layout.scaled(GAP), geometry.rowY(2)};
+			case RIGHT_ROW_3 -> new int[]{menuRight + layout.scaled(GAP), geometry.rowY(2)};
+			case LEFT_ROW_5 -> new int[]{menuLeft - ICON_SIZE - layout.scaled(GAP), geometry.rowY(4)};
+			case RIGHT_ROW_5 -> new int[]{menuRight + layout.scaled(GAP), geometry.rowY(4)};
+			case ICON_SLOT_1 -> new int[]{this.iconSlotX(layout, 0), this.iconSlotY(layout, geometry)};
+			case ICON_SLOT_2 -> new int[]{this.iconSlotX(layout, 1), this.iconSlotY(layout, geometry)};
+			case ICON_SLOT_3 -> new int[]{this.iconSlotX(layout, 2), this.iconSlotY(layout, geometry)};
+			case ICON_SLOT_4 -> new int[]{this.iconSlotX(layout, 3), this.iconSlotY(layout, geometry)};
+			case ICON_SLOT_5 -> new int[]{this.iconSlotX(layout, 4), this.iconSlotY(layout, geometry)};
+			case BELOW_MENU -> new int[]{layout.centerX() - ICON_SIZE / 2, this.belowMenuY(layout, geometry)};
 			case TOP_LEFT -> {
 				int x = layout.safeLeft() + layout.cornerInset();
 				yield new int[]{x, this.topCornerY(layout, x)};
@@ -651,7 +643,7 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 			}
 			case BOTTOM_LEFT -> new int[]{layout.safeLeft() + layout.cornerInset(), layout.previewBottom() - ICON_SIZE - layout.cornerInset()};
 			case BOTTOM_RIGHT -> new int[]{layout.safeRight() - ICON_SIZE - layout.cornerInset(), layout.previewBottom() - ICON_SIZE - layout.cornerInset()};
-			default -> new int[]{layout.centerX() - ICON_SIZE / 2, this.iconSlotY(layout, menuTop)};
+			default -> new int[]{layout.centerX() - ICON_SIZE / 2, this.iconSlotY(layout, geometry)};
 		};
 	}
 
@@ -702,15 +694,15 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		return layout.centerX() - totalWidth / 2 + (ICON_SIZE + GAP) * (index - rowStart);
 	}
 
-	private int iconSlotY(PreviewLayout layout, int menuTop) {
-		return this.iconSlotY(layout, menuTop, 0);
+	private int iconSlotY(PreviewLayout layout, SocialButtonLayout.MenuGeometry geometry) {
+		return this.iconSlotY(layout, geometry, 0);
 	}
 
-	private int iconSlotY(PreviewLayout layout, int menuTop, int index) {
+	private int iconSlotY(PreviewLayout layout, SocialButtonLayout.MenuGeometry geometry, int index) {
 		if (ModMenuIntegration.hasInsertedRow(this.selectedArea)) {
-			return this.rowWrappedY(layout, this.rawPreviewRowY(layout, menuTop, 4) + layout.buttonHeight() + layout.scaled(GAP), index);
+			return this.rowWrappedY(layout, geometry.iconRowY(), index);
 		}
-		return this.rowWrappedY(layout, this.previewRowY(layout, menuTop, this.selectedArea == MenuArea.PAUSE_MENU ? 2 : 3) + VANILLA_ICON_ROW_Y_OFFSET, index);
+		return this.rowWrappedY(layout, geometry.iconRowY(), index);
 	}
 
 	private int rowWrappedY(PreviewLayout layout, int y, int index) {
@@ -753,6 +745,37 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 			case PAUSE_MENU -> layout.pauseMenuTop();
 			case OPTIONS_MENU -> layout.optionsMenuTop();
 		};
+	}
+
+	private SocialButtonLayout.MenuGeometry previewGeometry(PreviewLayout layout) {
+		int menuTop = this.menuTop(layout);
+		int[] offsets = switch (this.selectedArea) {
+			case MAIN_MENU -> MAIN_MENU_ROWS;
+			case PAUSE_MENU -> PAUSE_MENU_ROWS;
+			case OPTIONS_MENU -> OPTIONS_MENU_ROWS;
+		};
+		int[] rows = new int[offsets.length];
+		for (int index = 0; index < offsets.length; index++) {
+			rows[index] = menuTop + Math.round(offsets[index] * layout.scale());
+		}
+
+		if (ModMenuIntegration.hasInsertedRow(MenuArea.MAIN_MENU) && this.selectedArea == MenuArea.MAIN_MENU) {
+			rows[0] = menuTop + Math.round(-12 * layout.scale());
+			rows[1] = menuTop + Math.round(12 * layout.scale());
+			rows[2] = menuTop + Math.round(36 * layout.scale());
+			rows[3] = menuTop + Math.round(60 * layout.scale());
+			rows[4] = menuTop + Math.round(108 * layout.scale());
+		} else if (ModMenuIntegration.hasInsertedRow(MenuArea.PAUSE_MENU) && this.selectedArea == MenuArea.PAUSE_MENU) {
+			rows[2] -= Math.round(4 * layout.scale());
+			rows[3] += Math.round(16 * layout.scale());
+			rows[4] += Math.round(16 * layout.scale());
+		}
+
+		int menuBottom = rows[rows.length - 1] + layout.buttonHeight();
+		int iconRowY = ModMenuIntegration.hasInsertedRow(this.selectedArea)
+				? rows[this.selectedArea == MenuArea.PAUSE_MENU ? 2 : 3] + layout.buttonHeight() + layout.scaled(GAP)
+				: rows[this.selectedArea == MenuArea.PAUSE_MENU ? 2 : 3] + VANILLA_ICON_ROW_Y_OFFSET;
+		return new SocialButtonLayout.MenuGeometry(rows[0], menuBottom, rows, iconRowY);
 	}
 
 	private static class SolidPanelWidget extends AbstractWidget {

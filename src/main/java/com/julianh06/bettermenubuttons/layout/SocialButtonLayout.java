@@ -60,15 +60,19 @@ public class SocialButtonLayout {
 	public static void apply(int screenWidth, int screenHeight, int menuTop, int menuBottom, MenuArea area, Map<MenuButton, AbstractWidget> buttons) {
 		int menuLeft = screenWidth / 2 - VANILLA_MENU_WIDTH / 2;
 		int menuRight = menuLeft + VANILLA_MENU_WIDTH;
-		apply(screenWidth, screenHeight, menuLeft, menuRight, menuTop, menuBottom, area, buttons);
+		apply(screenWidth, screenHeight, menuLeft, menuRight, geometry(area, menuTop, menuBottom), area, buttons);
 	}
 
 	public static void apply(int screenWidth, int screenHeight, int menuLeft, int menuRight, int menuTop, int menuBottom, MenuArea area, Map<MenuButton, AbstractWidget> buttons) {
+		apply(screenWidth, screenHeight, menuLeft, menuRight, geometry(area, menuTop, menuBottom), area, buttons);
+	}
+
+	public static void apply(int screenWidth, int screenHeight, int menuLeft, int menuRight, MenuGeometry geometry, MenuArea area, Map<MenuButton, AbstractWidget> buttons) {
 		if (buttons.isEmpty()) {
 			return;
 		}
 
-		int referenceY = buttons.values().stream().mapToInt(AbstractWidget::getY).min().orElse(menuBottom + GAP);
+		int referenceY = buttons.values().stream().mapToInt(AbstractWidget::getY).min().orElse(geometry.menuBottom() + GAP);
 		EnumMap<ButtonPosition, List<AbstractWidget>> grouped = new EnumMap<>(ButtonPosition.class);
 		List<AbstractWidget> vanillaIconButtons = new ArrayList<>();
 		List<AbstractWidget> belowMenuButtons = new ArrayList<>();
@@ -109,43 +113,72 @@ public class SocialButtonLayout {
 		}
 
 		for (Map.Entry<ButtonPosition, List<AbstractWidget>> entry : grouped.entrySet()) {
-			placePosition(entry.getKey(), screenWidth, screenHeight, menuLeft, menuRight, menuTop, referenceY, menuBottom, area, entry.getValue());
+			placePosition(entry.getKey(), screenWidth, screenHeight, menuLeft, menuRight, referenceY, geometry, area, entry.getValue());
 		}
 
-		int belowMenuY = Math.min(screenHeight - BUTTON_SIZE - MARGIN, menuBottom + GAP);
+		int belowMenuY = Math.min(screenHeight - BUTTON_SIZE - MARGIN, geometry.menuBottom() + GAP);
 		if (!vanillaIconButtons.isEmpty()) {
-			int iconSlotY = iconSlotY(area, menuTop, menuBottom, screenHeight);
+			int iconSlotY = iconSlotY(area, geometry, screenHeight);
 			placeRowsCentered(screenWidth, screenWidth / 2, iconSlotY, vanillaIconButtons);
-			if (ModMenuIntegration.hasInsertedRow(area)) {
-				int iconRows = rowsNeeded(screenWidth - MARGIN * 2, vanillaIconButtons.size());
-				belowMenuY = Math.min(screenHeight - BUTTON_SIZE - MARGIN, iconSlotY + iconRows * (BUTTON_SIZE + GAP));
-			}
 		}
 		if (!belowMenuButtons.isEmpty()) {
 			placeRowsCentered(screenWidth, screenWidth / 2, belowMenuY, belowMenuButtons);
 		}
 	}
 
-	private static void placePosition(ButtonPosition position, int screenWidth, int screenHeight, int menuLeft, int menuRight, int menuTop, int referenceY, int menuBottom, MenuArea area, List<AbstractWidget> buttons) {
+	public static MenuGeometry geometry(MenuArea area, int menuTop, int menuBottom) {
+		int[] offsets = switch (area) {
+			case PAUSE_MENU -> PAUSE_MENU_ROWS;
+			case OPTIONS_MENU -> OPTIONS_MENU_ROWS;
+			case MAIN_MENU -> MAIN_MENU_ROWS;
+		};
+		int[] rowYs = new int[offsets.length];
+		for (int index = 0; index < offsets.length; index++) {
+			rowYs[index] = index == offsets.length - 1 ? menuBottom - BUTTON_SIZE : menuTop + offsets[index];
+		}
+		return new MenuGeometry(menuTop, menuBottom, rowYs, defaultIconRowY(area, rowYs));
+	}
+
+	public static MenuGeometry geometry(MenuArea area, int menuTop, int menuBottom, List<Integer> actualRows) {
+		return geometry(area, menuTop, menuBottom, actualRows, null);
+	}
+
+	public static MenuGeometry geometry(MenuArea area, int menuTop, int menuBottom, List<Integer> actualRows, Integer actualIconRowY) {
+		MenuGeometry fallback = geometry(area, menuTop, menuBottom);
+		if (actualRows.isEmpty()) {
+			return actualIconRowY == null ? fallback : fallback.withIconRowY(actualIconRowY);
+		}
+
+		List<Integer> rows = actualRows.stream().distinct().sorted().toList();
+		int[] rowYs = fallback.rowYs().clone();
+		for (int index = 0; index < Math.min(rowYs.length, rows.size()); index++) {
+			rowYs[index] = rows.get(index);
+		}
+		int actualBottom = Math.max(menuBottom, rows.getLast() + BUTTON_SIZE);
+		int iconRowY = actualIconRowY == null ? defaultIconRowY(area, rowYs) : actualIconRowY;
+		return new MenuGeometry(Math.min(menuTop, rows.getFirst()), actualBottom, rowYs, iconRowY);
+	}
+
+	private static void placePosition(ButtonPosition position, int screenWidth, int screenHeight, int menuLeft, int menuRight, int referenceY, MenuGeometry geometry, MenuArea area, List<AbstractWidget> buttons) {
 		switch (position) {
 			case LEFT_OF_MENU -> placeRowRightAligned(menuLeft - GAP, referenceY, buttons);
 			case RIGHT_OF_MENU -> placeRowLeftAligned(menuRight + GAP, referenceY, buttons);
-			case LEFT_ROW_1 -> placeRowRightAligned(menuLeft - GAP, rowY(area, menuTop, menuBottom, 0), buttons);
-			case RIGHT_ROW_1 -> placeRowLeftAligned(menuRight + GAP, rowY(area, menuTop, menuBottom, 0), buttons);
-			case LEFT_ROW_2 -> placeRowRightAligned(menuLeft - GAP, rowY(area, menuTop, menuBottom, 1), buttons);
-			case RIGHT_ROW_2 -> placeRowLeftAligned(menuRight + GAP, rowY(area, menuTop, menuBottom, 1), buttons);
-			case LEFT_ROW_3 -> placeRowRightAligned(menuLeft - GAP, rowY(area, menuTop, menuBottom, 2), buttons);
-			case RIGHT_ROW_3 -> placeRowLeftAligned(menuRight + GAP, rowY(area, menuTop, menuBottom, 2), buttons);
-			case LEFT_ROW_4 -> placeRowRightAligned(menuLeft - GAP, rowY(area, menuTop, menuBottom, 3), buttons);
-			case RIGHT_ROW_4 -> placeRowLeftAligned(menuRight + GAP, rowY(area, menuTop, menuBottom, 3), buttons);
-			case LEFT_ROW_5 -> placeRowRightAligned(menuLeft - GAP, rowY(area, menuTop, menuBottom, 4), buttons);
-			case RIGHT_ROW_5 -> placeRowLeftAligned(menuRight + GAP, rowY(area, menuTop, menuBottom, 4), buttons);
-			case ICON_SLOT_1 -> placeRowLeftAligned(iconSlotX(area, screenWidth, 0), iconSlotY(area, menuTop, menuBottom, screenHeight), buttons);
-			case ICON_SLOT_2 -> placeRowLeftAligned(iconSlotX(area, screenWidth, 1), iconSlotY(area, menuTop, menuBottom, screenHeight), buttons);
-			case ICON_SLOT_3 -> placeRowLeftAligned(iconSlotX(area, screenWidth, 2), iconSlotY(area, menuTop, menuBottom, screenHeight), buttons);
-			case ICON_SLOT_4 -> placeRowLeftAligned(iconSlotX(area, screenWidth, 3), iconSlotY(area, menuTop, menuBottom, screenHeight), buttons);
-			case ICON_SLOT_5 -> placeRowLeftAligned(iconSlotX(area, screenWidth, 4), iconSlotY(area, menuTop, menuBottom, screenHeight), buttons);
-			case BELOW_MENU -> placeRowsCentered(screenWidth, screenWidth / 2, Math.min(screenHeight - BUTTON_SIZE - MARGIN, menuBottom + GAP), buttons);
+			case LEFT_ROW_1 -> placeRowRightAligned(menuLeft - GAP, geometry.rowY(0), buttons);
+			case RIGHT_ROW_1 -> placeRowLeftAligned(menuRight + GAP, geometry.rowY(0), buttons);
+			case LEFT_ROW_2 -> placeRowRightAligned(menuLeft - GAP, geometry.rowY(1), buttons);
+			case RIGHT_ROW_2 -> placeRowLeftAligned(menuRight + GAP, geometry.rowY(1), buttons);
+			case LEFT_ROW_3 -> placeRowRightAligned(menuLeft - GAP, geometry.rowY(2), buttons);
+			case RIGHT_ROW_3 -> placeRowLeftAligned(menuRight + GAP, geometry.rowY(2), buttons);
+			case LEFT_ROW_4 -> placeRowRightAligned(menuLeft - GAP, geometry.rowY(3), buttons);
+			case RIGHT_ROW_4 -> placeRowLeftAligned(menuRight + GAP, geometry.rowY(3), buttons);
+			case LEFT_ROW_5 -> placeRowRightAligned(menuLeft - GAP, geometry.rowY(4), buttons);
+			case RIGHT_ROW_5 -> placeRowLeftAligned(menuRight + GAP, geometry.rowY(4), buttons);
+			case ICON_SLOT_1 -> placeRowLeftAligned(iconSlotX(area, screenWidth, 0), iconSlotY(area, geometry, screenHeight), buttons);
+			case ICON_SLOT_2 -> placeRowLeftAligned(iconSlotX(area, screenWidth, 1), iconSlotY(area, geometry, screenHeight), buttons);
+			case ICON_SLOT_3 -> placeRowLeftAligned(iconSlotX(area, screenWidth, 2), iconSlotY(area, geometry, screenHeight), buttons);
+			case ICON_SLOT_4 -> placeRowLeftAligned(iconSlotX(area, screenWidth, 3), iconSlotY(area, geometry, screenHeight), buttons);
+			case ICON_SLOT_5 -> placeRowLeftAligned(iconSlotX(area, screenWidth, 4), iconSlotY(area, geometry, screenHeight), buttons);
+			case BELOW_MENU -> placeRowsCentered(screenWidth, screenWidth / 2, Math.min(screenHeight - BUTTON_SIZE - MARGIN, geometry.menuBottom() + GAP), buttons);
 			case TOP_LEFT -> placeRowLeftAligned(MARGIN, MARGIN, buttons);
 			case TOP_RIGHT -> placeRowRightAligned(screenWidth - MARGIN, MARGIN, buttons);
 			case BOTTOM_LEFT -> placeRowLeftAligned(MARGIN, screenHeight - BUTTON_SIZE - MARGIN, buttons);
@@ -155,30 +188,21 @@ public class SocialButtonLayout {
 		}
 	}
 
-	private static int rowY(MenuArea area, int menuTop, int menuBottom, int rowIndex) {
-		int[] rows = switch (area) {
-			case PAUSE_MENU -> PAUSE_MENU_ROWS;
-			case OPTIONS_MENU -> OPTIONS_MENU_ROWS;
-			case MAIN_MENU -> MAIN_MENU_ROWS;
-		};
-		int clampedRowIndex = Math.min(rowIndex, rows.length - 1);
-		if (clampedRowIndex == rows.length - 1) {
-			return menuBottom - BUTTON_SIZE;
-		}
-		return menuTop + rows[clampedRowIndex];
-	}
-
 	private static int iconSlotX(MenuArea area, int screenWidth, int slotIndex) {
 		int count = Math.max(1, BetterMenuButtonsConfig.vanillaIconSlotCount(area));
 		int left = screenWidth / 2 - (BUTTON_SIZE * count + GAP * (count - 1)) / 2;
 		return left + (BUTTON_SIZE + GAP) * Math.min(slotIndex, count - 1);
 	}
 
-	private static int iconSlotY(MenuArea area, int menuTop, int menuBottom, int screenHeight) {
+	private static int iconSlotY(MenuArea area, MenuGeometry geometry, int screenHeight) {
 		if (ModMenuIntegration.hasInsertedRow(area)) {
-			return Math.min(screenHeight - BUTTON_SIZE - MARGIN, menuBottom + GAP);
+			return Math.min(screenHeight - BUTTON_SIZE - MARGIN, geometry.insertedIconRowY(area));
 		}
-		return rowY(area, menuTop, menuBottom, area == MenuArea.PAUSE_MENU ? 2 : 3) + VANILLA_ICON_ROW_Y_OFFSET;
+		return geometry.iconRowY();
+	}
+
+	private static int defaultIconRowY(MenuArea area, int[] rowYs) {
+		return rowYs[area == MenuArea.PAUSE_MENU ? 2 : 3] + VANILLA_ICON_ROW_Y_OFFSET;
 	}
 
 	private static void placeSpread(int left, int right, int y, List<AbstractWidget> buttons) {
@@ -276,5 +300,20 @@ public class SocialButtonLayout {
 	private static int rowsNeeded(int availableWidth, int buttonCount) {
 		int maxButtonsPerRow = maxButtonsPerRow(availableWidth);
 		return Math.max(1, (buttonCount + maxButtonsPerRow - 1) / maxButtonsPerRow);
+	}
+
+	public record MenuGeometry(int menuTop, int menuBottom, int[] rowYs, int iconRowY) {
+		public int rowY(int rowIndex) {
+			return this.rowYs[Math.min(rowIndex, this.rowYs.length - 1)];
+		}
+
+		public int insertedIconRowY(MenuArea area) {
+			int insertedRow = area == MenuArea.PAUSE_MENU ? 2 : 3;
+			return this.rowY(insertedRow) + BUTTON_SIZE + GAP;
+		}
+
+		public MenuGeometry withIconRowY(int iconRowY) {
+			return new MenuGeometry(this.menuTop, this.menuBottom, this.rowYs, iconRowY);
+		}
 	}
 }

@@ -25,29 +25,26 @@ public class ModMenuIntegration {
 
 	public static boolean hasIconButton(MenuArea area) {
 		return switch (area) {
-			case MAIN_MENU -> titleStyleIs("ICON");
-			case PAUSE_MENU -> gameStyleIs("ICON");
+			case MAIN_MENU -> "ICON".equals(titleButtonStyle());
+			case PAUSE_MENU -> "ICON".equals(gameButtonStyle());
 			case OPTIONS_MENU -> isLoaded();
 		};
 	}
 
 	public static boolean hasInsertedRow(MenuArea area) {
 		return switch (area) {
-			case MAIN_MENU -> titleStyleIs("CLASSIC");
-			case PAUSE_MENU -> gameStyleIs("INSERT");
+			case MAIN_MENU -> "CLASSIC".equals(titleButtonStyle());
+			case PAUSE_MENU -> "INSERT".equals(gameButtonStyle());
 			case OPTIONS_MENU -> false;
 		};
 	}
 
 	public static int buttonLayoutState(MenuArea area) {
-		int state = 0;
-		if (hasIconButton(area)) {
-			state |= 1;
-		}
-		if (hasInsertedRow(area)) {
-			state |= 2;
-		}
-		return state;
+		return switch (area) {
+			case MAIN_MENU -> ("title:" + titleButtonStyle()).hashCode();
+			case PAUSE_MENU -> ("game:" + gameButtonStyle()).hashCode();
+			case OPTIONS_MENU -> isLoaded() ? 1 : 0;
+		};
 	}
 
 	public static boolean isModsIconButton(AbstractWidget widget) {
@@ -68,12 +65,18 @@ public class ModMenuIntegration {
 		}
 	}
 
-	private static boolean titleStyleIs(String expectedStyle) {
-		return isEnabled("MODIFY_TITLE_SCREEN") && expectedStyle.equals(enumOptionName("MODS_BUTTON_STYLE"));
+	public static String titleButtonStyle() {
+		if (!isEnabled("MODIFY_TITLE_SCREEN")) {
+			return "";
+		}
+		return enumOptionName("MODS_BUTTON_STYLE");
 	}
 
-	private static boolean gameStyleIs(String expectedStyle) {
-		return isEnabled("MODIFY_GAME_MENU") && expectedStyle.equals(enumOptionName("GAME_MENU_BUTTON_STYLE"));
+	public static String gameButtonStyle() {
+		if (!isEnabled("MODIFY_GAME_MENU")) {
+			return "";
+		}
+		return enumOptionName("GAME_MENU_BUTTON_STYLE");
 	}
 
 	private static boolean isEnabled(String fieldName) {
