@@ -7,7 +7,17 @@
 	"authors": [
 		"JulianH06"
 	],
-	"license": "CC0-1.0",
+	"contact": {
+		"sources": "https://github.com/JulianH06/better-menu-buttons"
+	},
+	"custom": {
+		"modmenu": {
+			"links": {
+				"modmenu.modrinth": "https://modrinth.com/project/better-menu-buttons"
+			}
+		}
+	},
+	"license": "GPL-3.0",
 	"icon": "assets/better-menu-buttons/icon.png",
 	"environment": "client",
 	"entrypoints": {
