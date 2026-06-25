@@ -151,8 +151,15 @@ public class SocialButtonLayout {
 
 		List<Integer> rows = actualRows.stream().distinct().sorted().toList();
 		int[] rowYs = fallback.rowYs().clone();
-		for (int index = 0; index < Math.min(rowYs.length, rows.size()); index++) {
-			rowYs[index] = rows.get(index);
+		if (area == MenuArea.PAUSE_MENU && rows.size() == 4) {
+			rowYs[0] = rows.get(0);
+			rowYs[1] = rows.get(1);
+			rowYs[3] = rows.get(2);
+			rowYs[4] = rows.get(3);
+		} else {
+			for (int index = 0; index < Math.min(rowYs.length, rows.size()); index++) {
+				rowYs[index] = rows.get(index);
+			}
 		}
 		int actualBottom = Math.max(menuBottom, rows.getLast() + BUTTON_SIZE);
 		int iconRowY = actualIconRowY == null ? defaultIconRowY(area, rowYs) : actualIconRowY;
