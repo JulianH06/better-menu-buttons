@@ -1,72 +1,147 @@
 plugins {
-	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'dev.architectury.loom' version "${architectury_loom_version}" apply false
+	id 'dev.architectury.loom-no-remap' version "${architectury_loom_version}" apply false
 	id 'maven-publish'
 }
 
-version = project.mod_version
-group = project.maven_group
-
-repositories {
-	maven {
-		name = "TerraformersMC"
-		url = "https://maven.terraformersmc.com/releases/"
-	}
-}
-
-loom {
-	mods {
-		"better-menu-buttons" {
-			sourceSet sourceSets.main
-		}
-	}
-}
-
-dependencies {
-	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	
-	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-	compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
-}
-
-
-processResources {
-	def version = project.version
-	inputs.property "version", version
-
-	filesMatching("fabric.mod.json") {
-		expand "version": version
-	}
-}
-
-tasks.withType(JavaCompile).configureEach {
-	it.options.release = 25
-}
-
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(25)
-	}
-
-	withSourcesJar()
-}
-
-jar {
-	def projectName = project.name
-	inputs.property "projectName", projectName
-
-	from("LICENSE") {
-		rename { "${it}_$projectName"}
-	}
-}
-
-publishing {
-	publications {
-		create("mavenJava", MavenPublication) {
-			from components.java
-		}
-	}
+allprojects {
+	version = project.mod_version
+	group = project.maven_group
 
 	repositories {
+		maven {
+			name = 'Fabric'
+			url = 'https://maven.fabricmc.net/'
+		}
+		maven {
+			name = 'Quilt'
+			url = 'https://maven.quiltmc.org/repository/release/'
+		}
+		maven {
+			name = 'TerraformersMC'
+			url = 'https://maven.terraformersmc.com/releases/'
+		}
+		maven {
+			name = 'Forge'
+			url = 'https://maven.minecraftforge.net/'
+		}
+		maven {
+			name = 'NeoForge'
+			url = 'https://maven.neoforged.net/releases/'
+		}
+		mavenCentral()
+	}
+}
+
+subprojects {
+	ext.set('loom.platform', project.name)
+
+	if (project.name == 'forge' || project.name == 'neoforge') {
+		apply plugin: 'dev.architectury.loom-no-remap'
+	} else {
+		apply plugin: 'dev.architectury.loom'
+	}
+	apply plugin: 'maven-publish'
+
+	base {
+		archivesName = "${rootProject.name}-${project.name}"
+	}
+
+	sourceSets {
+		main {
+			java.srcDirs = [
+					rootProject.file('common/src/main/java'),
+					project.file('src/main/java')
+			]
+			resources.srcDirs = [
+					rootProject.file('common/src/main/resources'),
+					project.file('src/main/resources')
+			]
+		}
+	}
+
+	loom {
+		silentMojangMappingsLicense()
+
+		mods {
+			'better-menu-buttons' {
+				sourceSet sourceSets.main
+			}
+		}
+	}
+
+	dependencies {
+		minecraft "com.mojang:minecraft:${project.minecraft_version}"
+
+		if (project.name == 'fabric') {
+			mappings files(rootProject.file('mappings/official-mappings.jar'))
+			modImplementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+			modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+			modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+		} else if (project.name == 'quilt') {
+			mappings files(rootProject.file('mappings/official-mappings.jar'))
+			modImplementation "org.quiltmc:quilt-loader:${project.quilt_loader_version}"
+			modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+		} else if (project.name == 'forge') {
+			forge "net.minecraftforge:forge:${project.forge_version}"
+		} else if (project.name == 'neoforge') {
+			neoForge "net.neoforged:neoforge:${project.neoforge_version}"
+		}
+	}
+
+	processResources {
+		def minecraftRange = project.findProperty("minecraft_range_${project.name}") ?: project.minecraft_range
+		def properties = [
+				version              : project.version,
+				minecraft_version    : project.minecraft_version,
+				minecraft_range      : minecraftRange,
+				fabric_loader_version: project.fabric_loader_version,
+				quilt_loader_version : project.quilt_loader_version,
+				forge_loader_range   : project.forge_loader_range,
+				neoforge_loader_range: project.neoforge_loader_range
+		]
+
+		inputs.properties properties
+		filesMatching(['fabric.mod.json', 'quilt.mod.json', 'META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
+			expand properties
+		}
+	}
+
+	tasks.withType(JavaCompile).configureEach {
+		it.options.release = 25
+	}
+
+	java {
+		toolchain {
+			languageVersion = JavaLanguageVersion.of(25)
+		}
+
+		withSourcesJar()
+	}
+
+	jar {
+		inputs.property 'projectName', rootProject.name
+		if (project.name == 'forge') {
+			manifest {
+				attributes([
+						'MixinConfigs': 'better-menu-buttons.client.mixins.json'
+				])
+			}
+		}
+
+		from(rootProject.file('LICENSE')) {
+			rename { "${it}_${rootProject.name}" }
+		}
+	}
+
+	publishing {
+		publications {
+			create('mavenJava', MavenPublication) {
+				from components.java
+			}
+		}
+
+		repositories {
+		}
 	}
 }

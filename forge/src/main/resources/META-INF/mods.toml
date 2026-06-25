@@ -1,0 +1,29 @@
+modLoader = "javafml"
+loaderVersion = "${forge_loader_range}"
+license = "GPL-3.0"
+displayTest = "IGNORE_ALL_VERSION"
+
+[[mixins]]
+config = "better-menu-buttons.client.mixins.json"
+
+[[mods]]
+modId = "better_menu_buttons"
+version = "${version}"
+displayName = "Better menu buttons"
+description = "Lets you move or hide Minecraft's menu buttons."
+logoFile = "assets/better-menu-buttons/icon.png"
+authors = "JulianH06"
+
+[[dependencies.better_menu_buttons]]
+modId = "forge"
+mandatory = true
+versionRange = "${forge_loader_range}"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.better_menu_buttons]]
+modId = "minecraft"
+mandatory = true
+versionRange = "${minecraft_range}"
+ordering = "NONE"
+side = "CLIENT"

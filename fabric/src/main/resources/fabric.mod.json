@@ -1,0 +1,46 @@
+{
+	"schemaVersion": 1,
+	"id": "better-menu-buttons",
+	"version": "${version}",
+	"name": "Better menu buttons",
+	"description": "Lets you move or hide Minecraft's menu buttons.",
+	"authors": [
+		"JulianH06"
+	],
+	"contact": {
+		"sources": "https://github.com/JulianH06/better-menu-buttons"
+	},
+	"custom": {
+		"modmenu": {
+			"links": {
+				"modmenu.modrinth": "https://modrinth.com/project/better-menu-buttons"
+			}
+		}
+	},
+	"license": "GPL-3.0",
+	"icon": "assets/better-menu-buttons/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.julianh06.bettermenubuttons.BetterMenuButtonsClient"
+		],
+		"modmenu": [
+			"com.julianh06.bettermenubuttons.config.BetterMenuButtonsModMenu"
+		]
+	},
+	"mixins": [
+		{
+			"config": "better-menu-buttons.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=${fabric_loader_version}",
+		"minecraft": "${minecraft_range}",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"modmenu": "*"
+	}
+}
