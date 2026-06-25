@@ -17,6 +17,7 @@ public class ModMenuIntegration {
 	private static final String MODMENU_CONFIG_CLASS = "com.terraformersmc.modmenu.config.ModMenuConfig";
 	private static final String MODMENU_BUTTON_CLASS = "com.terraformersmc.modmenu.gui.widget.ModMenuButtonWidget";
 	private static final String MODMENU_ICON_BUTTON_CLASS = "com.terraformersmc.modmenu.gui.widget.UpdateCheckerTexturedButtonWidget";
+	private static final String MODMENU_WIDGET_PACKAGE = "com.terraformersmc.modmenu.gui.widget.";
 	private static final String NEOFORGE_MODS_BUTTON_CLASS = "net.neoforged.neoforge.client.gui.widget.ModsButton";
 	public static final Identifier NEOFORGE_MODS_SPRITE = Identifier.fromNamespaceAndPath(NEOFORGE_ID, "icon/neo_logo");
 
@@ -62,11 +63,22 @@ public class ModMenuIntegration {
 	public static boolean isModsIconButton(AbstractWidget widget) {
 		String className = widget.getClass().getName();
 		return (isLoaded() && MODMENU_ICON_BUTTON_CLASS.equals(className))
+				|| isSmallModMenuIconButton(widget, className)
 				|| (isNeoForgeLoaded() && NEOFORGE_MODS_BUTTON_CLASS.equals(className));
 	}
 
 	public static boolean isModsRowButton(AbstractWidget widget) {
 		return isLoaded() && MODMENU_BUTTON_CLASS.equals(widget.getClass().getName());
+	}
+
+	private static boolean isSmallModMenuIconButton(AbstractWidget widget, String className) {
+		return isLoaded()
+				&& className.startsWith(MODMENU_WIDGET_PACKAGE)
+				&& className.endsWith("ModMenuButtonWidget")
+				&& !MODMENU_BUTTON_CLASS.equals(className)
+				&& widget.getWidth() <= 20
+				&& widget.getHeight() <= 20
+				&& "Mods".equals(widget.getMessage().getString());
 	}
 
 	public static Screen createModsScreen(Screen previous) {

@@ -10,6 +10,7 @@ import com.julianh06.bettermenubuttons.layout.SocialButtonLayout;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.FriendsButton;
+import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -24,6 +25,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -87,8 +90,8 @@ public abstract class TitleScreenMixin extends Screen {
 		int menuTop = Integer.MAX_VALUE;
 		int menuBottom = 0;
 		int insertedRowY = Integer.MAX_VALUE;
-		for (GuiEventListener child : this.children()) {
-			if (!(child instanceof AbstractWidget widget)) {
+		for (AbstractWidget widget : this.better_menu_buttons$widgets()) {
+			if (widget == null) {
 				continue;
 			}
 
@@ -137,6 +140,45 @@ public abstract class TitleScreenMixin extends Screen {
 
 		SocialButtonLayout.MenuGeometry geometry = SocialButtonLayout.geometry(MenuArea.MAIN_MENU, menuTop, menuBottom, menuRowYs(vanillaMenuButtons), iconRowY(iconRowYs));
 		SocialButtonLayout.apply(this.width, this.height, menuLeft, menuRight, geometry, MenuArea.MAIN_MENU, moveableButtons);
+	}
+
+	@Unique
+	private List<AbstractWidget> better_menu_buttons$widgets() {
+		List<AbstractWidget> widgets = new ArrayList<>();
+		this.better_menu_buttons$addWidgets(widgets, this.better_menu_buttons$fabricScreenApiWidgets());
+		for (GuiEventListener child : this.children()) {
+			if (child instanceof AbstractWidget widget && !widgets.contains(widget)) {
+				widgets.add(widget);
+			}
+		}
+		for (Renderable renderable : ((ScreenAccessor) this).better_menu_buttons$renderables()) {
+			if (renderable instanceof AbstractWidget widget && !widgets.contains(widget)) {
+				widgets.add(widget);
+			}
+		}
+		return widgets;
+	}
+
+	@Unique
+	@SuppressWarnings("unchecked")
+	private List<AbstractWidget> better_menu_buttons$fabricScreenApiWidgets() {
+		try {
+			Class<?> screensClass = Class.forName("net.fabricmc.fabric.api.client.screen.v1.Screens");
+			Method getWidgets = screensClass.getMethod("getWidgets", Screen.class);
+			Object result = getWidgets.invoke(null, this);
+			return result instanceof List<?> list ? (List<AbstractWidget>) list : List.of();
+		} catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
+			return List.of();
+		}
+	}
+
+	@Unique
+	private void better_menu_buttons$addWidgets(List<AbstractWidget> target, List<AbstractWidget> source) {
+		for (AbstractWidget widget : source) {
+			if (widget != null && !target.contains(widget)) {
+				target.add(widget);
+			}
+		}
 	}
 
 	@Unique
