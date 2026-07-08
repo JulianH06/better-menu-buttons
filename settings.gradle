@@ -21,5 +21,22 @@ pluginManagement {
 	}
 }
 
+plugins {
+	id 'dev.kikugie.stonecutter' version '0.9.6'
+}
+
 rootProject.name = 'better-menu-buttons'
-include 'fabric', 'quilt', 'forge', 'neoforge'
+
+stonecutter {
+	centralScript = 'build.gradle'
+	kotlinController = false
+	create(rootProject, file('versions.json5'))
+}
+
+gradle.rootProject {
+	tasks.register('buildAllVariants') {
+		group = 'build'
+		description = 'Builds every loader and Minecraft version variant.'
+		dependsOn subprojects.collect { ":${it.name}:build" }
+	}
+}

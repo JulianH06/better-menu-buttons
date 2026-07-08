@@ -31,8 +31,8 @@
 				"id": "minecraft",
 				"versions": {
 					"all": [
-						">=26.2",
-						"<26.4"
+						"${quilt_minecraft_lower_bound}",
+						"${quilt_minecraft_upper_bound}"
 					]
 				}
 			},

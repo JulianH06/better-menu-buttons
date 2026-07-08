@@ -50,7 +50,7 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 	private final List<PlacedPreviewButton> popupWidgets = new ArrayList<>();
 	private MenuArea selectedArea = MenuArea.MAIN_MENU;
 	private ButtonPosition popupPosition;
-	private MenuButton popupSwapButton;
+	private String popupSwapButton;
 	private int popupInsertionIndex;
 	private int popupX;
 	private int popupY;
@@ -69,6 +69,7 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 
 	@Override
 	protected void init() {
+		this.closeCustomPreviewButtons();
 		this.positionPreviewWidgets.clear();
 		this.placedPreviewButtons.clear();
 		this.popupWidgets.clear();
@@ -84,6 +85,9 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		this.addRenderableWidget(Button.builder(areaText(MenuArea.OPTIONS_MENU), button -> this.selectArea(MenuArea.OPTIONS_MENU))
 				.bounds(areaButtonLeft + (AREA_BUTTON_WIDTH + GAP) * 2, SCREEN_MARGIN, AREA_BUTTON_WIDTH, BUTTON_HEIGHT)
 				.build());
+		if (this.selectedArea == MenuArea.MAIN_MENU) {
+			this.addCustomButtonControls(layout);
+		}
 
 		if (this.selectedArea == MenuArea.MAIN_MENU) {
 			this.addMainMenuPreview(layout);
@@ -112,6 +116,24 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 				.build());
 		this.addRenderableWidget(Button.builder(Component.literal("Done"), button -> this.saveAndClose())
 				.bounds(footerLeft + (footerButtonWidth + GAP) * 2, footerY, footerButtonWidth, BUTTON_HEIGHT)
+				.build());
+	}
+
+	private void addCustomButtonControls(PreviewLayout layout) {
+		int y = SCREEN_MARGIN + BUTTON_HEIGHT + GAP;
+		int width = 76;
+		int left = layout.centerX() - (width * 4 + GAP * 3) / 2;
+		this.addRenderableWidget(Button.builder(Component.literal("Add Server"), button -> this.openAddServerScreen())
+				.bounds(left, y, width, BUTTON_HEIGHT)
+				.build());
+		this.addRenderableWidget(Button.builder(Component.literal("Add World"), button -> this.openAddWorldScreen())
+				.bounds(left + width + GAP, y, width, BUTTON_HEIGHT)
+				.build());
+		this.addRenderableWidget(Button.builder(Component.literal("Rename"), button -> this.openRenameCustomButtonScreen())
+				.bounds(left + (width + GAP) * 2, y, width, BUTTON_HEIGHT)
+				.build());
+		this.addRenderableWidget(Button.builder(Component.literal("Remove"), button -> this.openRemoveCustomButtonScreen())
+				.bounds(left + (width + GAP) * 3, y, width, BUTTON_HEIGHT)
 				.build());
 	}
 
@@ -180,12 +202,12 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 
 	private void addPlacedPreviewButtons(PreviewLayout layout) {
 		EnumMap<ButtonPosition, Integer> indexes = new EnumMap<>(ButtonPosition.class);
-		Map<MenuButton, Integer> vanillaIconIndexes = this.vanillaIconIndexes();
-		Map<MenuButton, Integer> belowMenuIndexes = this.rowIndexes(ButtonPosition.BELOW_MENU);
+		Map<String, Integer> vanillaIconIndexes = this.vanillaIconIndexes();
+		Map<String, Integer> belowMenuIndexes = this.rowIndexes(ButtonPosition.BELOW_MENU);
 		int vanillaIconCount = vanillaIconIndexes.size();
 		int belowMenuCount = belowMenuIndexes.size();
-		for (MenuButton button : BetterMenuButtonsConfig.orderedButtons(this.selectedArea)) {
-			if (!button.isAvailableIn(this.selectedArea)) {
+		for (String button : BetterMenuButtonsConfig.orderedButtonIds(this.selectedArea)) {
+			if (!BetterMenuButtonsConfig.isAvailableIn(this.selectedArea, button)) {
 				continue;
 			}
 
@@ -289,7 +311,7 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 			return;
 		}
 
-		if (count >= BetterMenuButtonsConfig.availableButtons(this.selectedArea).size()) {
+		if (count >= BetterMenuButtonsConfig.availableButtonIds(this.selectedArea).size()) {
 			return;
 		}
 
@@ -305,7 +327,7 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 			return;
 		}
 
-		if (count >= BetterMenuButtonsConfig.availableButtons(this.selectedArea).size()) {
+		if (count >= BetterMenuButtonsConfig.availableButtonIds(this.selectedArea).size()) {
 			return;
 		}
 
@@ -322,7 +344,7 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 			return;
 		}
 
-		List<MenuButton> buttons = BetterMenuButtonsConfig.availableButtons(this.selectedArea);
+		List<String> buttons = BetterMenuButtonsConfig.availableButtonIds(this.selectedArea);
 		int contentWidth = buttons.size() * ICON_SIZE + (buttons.size() - 1) * GAP;
 		this.popupWidth = contentWidth + POPUP_PADDING * 2;
 		this.popupHeight = ICON_SIZE + POPUP_PADDING * 2;
@@ -335,7 +357,7 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 
 		int x = this.popupX + POPUP_PADDING;
 		int y = this.popupY + POPUP_PADDING;
-		for (MenuButton button : buttons) {
+		for (String button : buttons) {
 			AbstractWidget widget = this.createIconButton(button, clicked -> this.moveButtonToPopupPosition(button));
 			widget.setPosition(x, y);
 			widget.setAlpha(this.isButtonAtPopupPosition(button) ? 1.0F : 0.78F);
@@ -349,7 +371,7 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		this.openButtonPicker(position, insertionIndex, null, x, y);
 	}
 
-	private void openButtonPicker(ButtonPosition position, int insertionIndex, MenuButton swapButton, int x, int y) {
+	private void openButtonPicker(ButtonPosition position, int insertionIndex, String swapButton, int x, int y) {
 		this.popupPosition = position;
 		this.popupSwapButton = swapButton;
 		this.popupInsertionIndex = Math.max(0, insertionIndex);
@@ -358,7 +380,7 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		this.rebuildWidgets();
 	}
 
-	private void moveButtonToPopupPosition(MenuButton button) {
+	private void moveButtonToPopupPosition(String button) {
 		if (this.popupPosition == null) {
 			return;
 		}
@@ -382,17 +404,17 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		this.rebuildWidgets();
 	}
 
-	private boolean isButtonAtPopupPosition(MenuButton button) {
+	private boolean isButtonAtPopupPosition(String button) {
 		return this.popupPosition != null && BetterMenuButtonsConfig.effectivePosition(this.selectedArea, button) == this.popupPosition;
 	}
 
-	private void moveToVanillaPopupSlot(MenuButton button) {
+	private void moveToVanillaPopupSlot(String button) {
 		BetterMenuButtonsConfig.moveToVanillaIconRow(this.selectedArea, button, this.popupInsertionIndex);
 	}
 
 	private int countVanillaIconButtons() {
 		int count = 0;
-		for (MenuButton button : BetterMenuButtonsConfig.availableButtons(this.selectedArea)) {
+		for (String button : BetterMenuButtonsConfig.availableButtonIds(this.selectedArea)) {
 			if (BetterMenuButtonsConfig.isVanillaIconSlot(this.selectedArea, BetterMenuButtonsConfig.effectivePosition(this.selectedArea, button))) {
 				count++;
 			}
@@ -445,7 +467,21 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 
 	@Override
 	public void onClose() {
+		this.closeCustomPreviewButtons();
 		this.saveAndClose();
+	}
+
+	private void closeCustomPreviewButtons() {
+		for (PlacedPreviewButton placedButton : this.placedPreviewButtons) {
+			if (placedButton.widget() instanceof CustomJoinIconButton customButton) {
+				customButton.close();
+			}
+		}
+		for (PlacedPreviewButton placedButton : this.popupWidgets) {
+			if (placedButton.widget() instanceof CustomJoinIconButton customButton) {
+				customButton.close();
+			}
+		}
 	}
 
 	private void selectArea(MenuArea area) {
@@ -455,8 +491,66 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		this.rebuildWidgets();
 	}
 
+	private void openAddServerScreen() {
+		if (this.minecraft == null) {
+			return;
+		}
+		List<CustomJoinSelectionScreen.Entry> entries = new ArrayList<>();
+		for (net.minecraft.client.multiplayer.ServerData server : CustomJoinTargets.servers(this.minecraft)) {
+			entries.add(new CustomJoinSelectionScreen.Entry(Component.literal(server.name + " - " + server.ip), BetterMenuButtonsConfig.CustomJoinButton.TargetType.SERVER, server.ip, () -> {
+				BetterMenuButtonsConfig.addCustomButton(BetterMenuButtonsConfig.CustomJoinButton.TargetType.SERVER, server.ip, server.name);
+				BetterMenuButtonsConfig.save();
+				this.minecraft.setScreenAndShow(new BetterMenuButtonsConfigScreen(this.parent, MenuArea.MAIN_MENU));
+			}));
+		}
+		this.minecraft.setScreenAndShow(new CustomJoinSelectionScreen(this, Component.literal("Add server button"), entries));
+	}
+
+	private void openAddWorldScreen() {
+		if (this.minecraft == null) {
+			return;
+		}
+		List<CustomJoinSelectionScreen.Entry> entries = new ArrayList<>();
+		for (net.minecraft.world.level.storage.LevelSummary world : CustomJoinTargets.worlds(this.minecraft)) {
+			entries.add(new CustomJoinSelectionScreen.Entry(Component.literal(world.getLevelName() + " - " + world.getLevelId()), BetterMenuButtonsConfig.CustomJoinButton.TargetType.WORLD, world.getLevelId(), () -> {
+				BetterMenuButtonsConfig.addCustomButton(BetterMenuButtonsConfig.CustomJoinButton.TargetType.WORLD, world.getLevelId(), world.getLevelName());
+				BetterMenuButtonsConfig.save();
+				this.minecraft.setScreenAndShow(new BetterMenuButtonsConfigScreen(this.parent, MenuArea.MAIN_MENU));
+			}));
+		}
+		this.minecraft.setScreenAndShow(new CustomJoinSelectionScreen(this, Component.literal("Add world button"), entries));
+	}
+
+	private void openRemoveCustomButtonScreen() {
+		if (this.minecraft == null) {
+			return;
+		}
+		List<CustomJoinSelectionScreen.Entry> entries = new ArrayList<>();
+		for (BetterMenuButtonsConfig.CustomJoinButton customButton : BetterMenuButtonsConfig.customButtons()) {
+			entries.add(new CustomJoinSelectionScreen.Entry(Component.literal(customButton.label), customButton.targetType, customButton.targetId, () -> {
+				BetterMenuButtonsConfig.removeCustomButton(customButton.id);
+				BetterMenuButtonsConfig.save();
+				this.minecraft.setScreenAndShow(new BetterMenuButtonsConfigScreen(this.parent, MenuArea.MAIN_MENU));
+			}));
+		}
+		this.minecraft.setScreenAndShow(new CustomJoinSelectionScreen(this, Component.literal("Remove custom button"), entries));
+	}
+
+	private void openRenameCustomButtonScreen() {
+		if (this.minecraft == null) {
+			return;
+		}
+		List<CustomJoinSelectionScreen.Entry> entries = new ArrayList<>();
+		for (BetterMenuButtonsConfig.CustomJoinButton customButton : BetterMenuButtonsConfig.customButtons()) {
+			entries.add(new CustomJoinSelectionScreen.Entry(Component.literal(customButton.label), customButton.targetType, customButton.targetId, () -> {
+				this.minecraft.setScreenAndShow(new CustomJoinRenameScreen(this, customButton.id, customButton.label));
+			}));
+		}
+		this.minecraft.setScreenAndShow(new CustomJoinSelectionScreen(this, Component.literal("Rename custom button"), entries));
+	}
+
 	private PreviewLayout previewLayout() {
-		return PreviewLayout.create(this.width, this.height, BetterMenuButtonsConfig.availableButtons(this.selectedArea).size());
+		return PreviewLayout.create(this.width, this.height, BetterMenuButtonsConfig.availableButtonIds(this.selectedArea).size());
 	}
 
 	private void saveAndClose() {
@@ -484,7 +578,15 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		};
 	}
 
-	private static Component buttonLabel(MenuButton button) {
+	private static Component buttonLabel(String buttonId) {
+		BetterMenuButtonsConfig.CustomJoinButton customButton = BetterMenuButtonsConfig.customButton(buttonId);
+		if (customButton != null) {
+			return Component.literal(customButton.label);
+		}
+		MenuButton button = BetterMenuButtonsConfig.vanillaButton(buttonId);
+		if (button == null) {
+			return Component.literal(buttonId);
+		}
 		return switch (button) {
 			case BETTER_MENU_BUTTONS -> BetterMenuButtonsIconButton.label();
 			case FRIENDS -> Component.literal("Friends");
@@ -497,18 +599,25 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		};
 	}
 
-	private AbstractWidget createIconButton(MenuButton button, Button.OnPress onPress) {
+	private AbstractWidget createIconButton(String buttonId, Button.OnPress onPress) {
+		BetterMenuButtonsConfig.CustomJoinButton customButton = BetterMenuButtonsConfig.customButton(buttonId);
+		if (customButton != null) {
+			AbstractWidget widget = new CustomJoinIconButton(0, 0, customButton, onPress);
+			widget.setTooltip(Tooltip.create(buttonLabel(buttonId)));
+			return widget;
+		}
+		MenuButton button = BetterMenuButtonsConfig.vanillaButton(buttonId);
 		AbstractWidget widget = switch (button) {
 			case BETTER_MENU_BUTTONS -> new BetterMenuButtonsIconButton(0, 0, onPress);
 			case FRIENDS -> CommonButtons.friends(ICON_SIZE, onPress, true);
 			case LANGUAGE -> CommonButtons.language(ICON_SIZE, onPress, true);
 			case ACCESSIBILITY -> CommonButtons.accessibility(ICON_SIZE, onPress, true);
-			case BUG_REPORT -> spriteButton(buttonLabel(button), BUG_REPORT_SPRITE, onPress);
-			case FEEDBACK -> spriteButton(buttonLabel(button), FEEDBACK_SPRITE, onPress);
-			case PLAYER_REPORTING -> spriteButton(buttonLabel(button), PLAYER_REPORTING_SPRITE, onPress);
+			case BUG_REPORT -> spriteButton(buttonLabel(buttonId), BUG_REPORT_SPRITE, onPress);
+			case FEEDBACK -> spriteButton(buttonLabel(buttonId), FEEDBACK_SPRITE, onPress);
+			case PLAYER_REPORTING -> spriteButton(buttonLabel(buttonId), PLAYER_REPORTING_SPRITE, onPress);
 			case MODS -> new ModMenuIconButton(0, 0, onPress);
 		};
-		widget.setTooltip(Tooltip.create(buttonLabel(button)));
+		widget.setTooltip(Tooltip.create(buttonLabel(buttonId)));
 		return widget;
 	}
 
@@ -649,30 +758,30 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 
 	private int countButtonsAt(ButtonPosition position) {
 		int count = 0;
-		for (MenuButton button : BetterMenuButtonsConfig.availableButtons(this.selectedArea)) {
-			if (button.isAvailableIn(this.selectedArea) && BetterMenuButtonsConfig.effectivePosition(this.selectedArea, button) == position) {
+		for (String button : BetterMenuButtonsConfig.availableButtonIds(this.selectedArea)) {
+			if (BetterMenuButtonsConfig.isAvailableIn(this.selectedArea, button) && BetterMenuButtonsConfig.effectivePosition(this.selectedArea, button) == position) {
 				count++;
 			}
 		}
 		return count;
 	}
 
-	private Map<MenuButton, Integer> vanillaIconIndexes() {
-		EnumMap<MenuButton, Integer> indexes = new EnumMap<>(MenuButton.class);
+	private Map<String, Integer> vanillaIconIndexes() {
+		Map<String, Integer> indexes = new java.util.LinkedHashMap<>();
 		int index = 0;
-		for (MenuButton button : BetterMenuButtonsConfig.orderedButtons(this.selectedArea)) {
-			if (button.isAvailableIn(this.selectedArea) && BetterMenuButtonsConfig.isVanillaIconSlot(this.selectedArea, BetterMenuButtonsConfig.effectivePosition(this.selectedArea, button))) {
+		for (String button : BetterMenuButtonsConfig.orderedButtonIds(this.selectedArea)) {
+			if (BetterMenuButtonsConfig.isAvailableIn(this.selectedArea, button) && BetterMenuButtonsConfig.isVanillaIconSlot(this.selectedArea, BetterMenuButtonsConfig.effectivePosition(this.selectedArea, button))) {
 				indexes.put(button, index++);
 			}
 		}
 		return indexes;
 	}
 
-	private Map<MenuButton, Integer> rowIndexes(ButtonPosition position) {
-		EnumMap<MenuButton, Integer> indexes = new EnumMap<>(MenuButton.class);
+	private Map<String, Integer> rowIndexes(ButtonPosition position) {
+		Map<String, Integer> indexes = new java.util.LinkedHashMap<>();
 		int index = 0;
-		for (MenuButton button : BetterMenuButtonsConfig.orderedButtons(this.selectedArea)) {
-			if (button.isAvailableIn(this.selectedArea) && BetterMenuButtonsConfig.effectivePosition(this.selectedArea, button) == position) {
+		for (String button : BetterMenuButtonsConfig.orderedButtonIds(this.selectedArea)) {
+			if (BetterMenuButtonsConfig.isAvailableIn(this.selectedArea, button) && BetterMenuButtonsConfig.effectivePosition(this.selectedArea, button) == position) {
 				indexes.put(button, index++);
 			}
 		}
@@ -794,7 +903,7 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		}
 	}
 
-	private record PlacedPreviewButton(AbstractWidget widget, MenuButton button) {
+	private record PlacedPreviewButton(AbstractWidget widget, String button) {
 	}
 
 	private record PreviewLayout(int safeLeft, int safeRight, int previewTop, int previewBottom, int centerX, float scale) {

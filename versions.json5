@@ -1,0 +1,10 @@
+{
+	versions: [
+		"fabric-26.2:fabric_26_2",
+		"quilt-26.2:quilt_26_2",
+		"forge-26.2:forge_26_2",
+		"neoforge-26.2:neoforge_26_2",
+		"fabric-26.3-snapshot3:fabric_26_3_snapshot3",
+		"quilt-26.3-snapshot3:quilt_26_3_snapshot3"
+	]
+}

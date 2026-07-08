@@ -37,7 +37,7 @@ public abstract class OptionsScreenMixin extends Screen {
 		EnumMap<MenuButton, AbstractWidget> moveableButtons = new EnumMap<>(MenuButton.class);
 		BetterMenuButtonsIconButton configButton = this.addRenderableWidget(new BetterMenuButtonsIconButton(0, 0, button -> {
 			if (this.minecraft != null) {
-				this.minecraft.setScreenAndShow(new BetterMenuButtonsConfigScreen(this, MenuArea.OPTIONS_MENU));
+				this.minecraft.setScreenAndShow(new BetterMenuButtonsConfigScreen(this, MenuArea.MAIN_MENU));
 			}
 		}));
 		configButton.setTooltip(Tooltip.create(BetterMenuButtonsIconButton.label()));

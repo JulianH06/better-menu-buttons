@@ -9,6 +9,10 @@ Supported loaders:
 - Forge
 - NeoForge
 
-Fabric and Quilt builds support Minecraft 26.2 and 26.3-snapshot-1. Forge and NeoForge builds only support Minecraft 26.2 as of now.
-
+Supported Minecraft versions:
+- Fabric: 26.2-26.3-Snapshot3
+- Quilt: 26.2-26.3-Snapshot3
+- Forge: 26.2
+- Neoforge: 26.2
+- 
 You can find more information here: https://modrinth.com/mod/better-menu-buttons

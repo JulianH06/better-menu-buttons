@@ -1,6 +1,7 @@
 plugins {
 	id 'dev.architectury.loom' version "${architectury_loom_version}" apply false
 	id 'dev.architectury.loom-no-remap' version "${architectury_loom_version}" apply false
+	id 'dev.kikugie.stonecutter'
 	id 'maven-publish'
 }
 
@@ -33,10 +34,40 @@ allprojects {
 	}
 }
 
-subprojects {
-	ext.set('loom.platform', project.name)
+if (project != rootProject) {
+	def variantName = stonecutter.current.project
+	def loader = variantName.substring(0, variantName.indexOf('-'))
+	def mcLabel = variantName.substring(variantName.indexOf('-') + 1)
+	def minecraftVersions = [
+			'26.2'          : '26.2',
+			'26.3-snapshot3': '26.3-snapshot-3'
+	]
+	def minecraftLoaderVersions = [
+			'26.2'          : '26.2',
+			'26.3-snapshot3': '26.3-alpha.3'
+	]
+	def minecraftLoaderUpperBounds = [
+			'26.2': '26.3-alpha.3'
+	]
+	def fabricApiVersions = [
+			'26.2'          : '0.152.1+26.2',
+			'26.3-snapshot3': '0.153.1+26.3'
+	]
+	def minecraftVersion = minecraftVersions[mcLabel]
+	if (minecraftVersion == null) {
+		throw new GradleException("Unknown Minecraft version label: ${mcLabel}")
+	}
+	def minecraftLoaderVersion = minecraftLoaderVersions[mcLabel]
+	def minecraftRange = (loader == 'forge' || loader == 'neoforge')
+			? '[26.2,26.3)'
+			: (mcLabel == '26.3-snapshot3' ? "=${minecraftLoaderVersion}" : ">=26.2 <${minecraftLoaderUpperBounds[mcLabel]}")
+	def quiltMinecraftLowerBound = mcLabel == '26.3-snapshot3' ? ">=${minecraftLoaderVersion}" : '>=26.2'
+	def quiltMinecraftUpperBound = mcLabel == '26.3-snapshot3' ? "<=${minecraftLoaderVersion}" : "<${minecraftLoaderUpperBounds[mcLabel]}"
 
-	if (project.name == 'forge' || project.name == 'neoforge') {
+	layout.buildDirectory = rootProject.layout.buildDirectory.dir("variants/${project.name}")
+	ext.set('loom.platform', loader)
+
+	if (loader == 'forge' || loader == 'neoforge') {
 		apply plugin: 'dev.architectury.loom-no-remap'
 	} else {
 		apply plugin: 'dev.architectury.loom'
@@ -44,18 +75,18 @@ subprojects {
 	apply plugin: 'maven-publish'
 
 	base {
-		archivesName = "${rootProject.name}-${project.name}"
+		archivesName = rootProject.name
 	}
 
 	sourceSets {
 		main {
 			java.srcDirs = [
 					rootProject.file('common/src/main/java'),
-					project.file('src/main/java')
+					rootProject.file("${loader}/src/main/java")
 			]
 			resources.srcDirs = [
 					rootProject.file('common/src/main/resources'),
-					project.file('src/main/resources')
+					rootProject.file("${loader}/src/main/resources")
 			]
 		}
 	}
@@ -71,30 +102,31 @@ subprojects {
 	}
 
 	dependencies {
-		minecraft "com.mojang:minecraft:${project.minecraft_version}"
+		minecraft "com.mojang:minecraft:${minecraftVersion}"
 
-		if (project.name == 'fabric') {
+		if (loader == 'fabric') {
 			mappings files(rootProject.file('mappings/official-mappings.jar'))
 			modImplementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
-			modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+			modImplementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersions[mcLabel]}"
 			modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
-		} else if (project.name == 'quilt') {
+		} else if (loader == 'quilt') {
 			mappings files(rootProject.file('mappings/official-mappings.jar'))
 			modImplementation "org.quiltmc:quilt-loader:${project.quilt_loader_version}"
 			modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
-		} else if (project.name == 'forge') {
+		} else if (loader == 'forge') {
 			forge "net.minecraftforge:forge:${project.forge_version}"
-		} else if (project.name == 'neoforge') {
+		} else if (loader == 'neoforge') {
 			neoForge "net.neoforged:neoforge:${project.neoforge_version}"
 		}
 	}
 
 	processResources {
-		def minecraftRange = project.findProperty("minecraft_range_${project.name}") ?: project.minecraft_range
 		def properties = [
 				version              : project.version,
-				minecraft_version    : project.minecraft_version,
+				minecraft_version    : minecraftVersion,
 				minecraft_range      : minecraftRange,
+				quilt_minecraft_lower_bound: quiltMinecraftLowerBound,
+				quilt_minecraft_upper_bound: quiltMinecraftUpperBound,
 				fabric_loader_version: project.fabric_loader_version,
 				quilt_loader_version : project.quilt_loader_version,
 				forge_loader_range   : project.forge_loader_range,
@@ -115,13 +147,12 @@ subprojects {
 		toolchain {
 			languageVersion = JavaLanguageVersion.of(25)
 		}
-
-		withSourcesJar()
 	}
 
 	jar {
+		archiveClassifier = project.name
 		inputs.property 'projectName', rootProject.name
-		if (project.name == 'forge') {
+		if (loader == 'forge') {
 			manifest {
 				attributes([
 						'MixinConfigs': 'better-menu-buttons.client.mixins.json'
@@ -132,6 +163,10 @@ subprojects {
 		from(rootProject.file('LICENSE')) {
 			rename { "${it}_${rootProject.name}" }
 		}
+	}
+
+	tasks.matching { it.name == 'remapJar' }.configureEach {
+		archiveClassifier = project.name
 	}
 
 	publishing {

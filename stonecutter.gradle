@@ -1,0 +1,5 @@
+plugins {
+	id 'dev.kikugie.stonecutter'
+}
+
+stonecutter.active 'fabric_26_2'

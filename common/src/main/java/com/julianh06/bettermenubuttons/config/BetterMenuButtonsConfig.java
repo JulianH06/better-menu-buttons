@@ -12,14 +12,22 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class BetterMenuButtonsConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+	private static final String VANILLA_PREFIX = "vanilla:";
+	private static final String CUSTOM_PREFIX = "custom:";
 	private static BetterMenuButtonsConfig instance = new BetterMenuButtonsConfig();
 
-	public EnumMap<MenuArea, EnumMap<MenuButton, ButtonPosition>> buttonPositions = createDefaultPositions();
-	public EnumMap<MenuArea, List<MenuButton>> buttonOrder = createDefaultButtonOrder();
+	public EnumMap<MenuArea, Map<String, ButtonPosition>> buttonPositionsById = createDefaultPositionsById();
+	public EnumMap<MenuArea, List<String>> buttonOrderById = createDefaultButtonOrderById();
+	public List<CustomJoinButton> customButtons = new ArrayList<>();
+	@Deprecated public EnumMap<MenuArea, EnumMap<MenuButton, ButtonPosition>> buttonPositions;
+	@Deprecated public EnumMap<MenuArea, List<MenuButton>> buttonOrder;
 
 	public static void load() {
 		Path configPath = configPath();
@@ -31,6 +39,7 @@ public class BetterMenuButtonsConfig {
 		try (Reader reader = Files.newBufferedReader(configPath)) {
 			BetterMenuButtonsConfig config = GSON.fromJson(reader, BetterMenuButtonsConfig.class);
 			instance = config != null ? config : new BetterMenuButtonsConfig();
+			instance.migrate();
 		} catch (Exception exception) {
 			BetterMenuButtons.LOGGER.warn("Could not read better-menu-buttons config, using defaults", exception);
 			instance = new BetterMenuButtonsConfig();
@@ -38,9 +47,13 @@ public class BetterMenuButtonsConfig {
 	}
 
 	public static ButtonPosition position(MenuArea area, MenuButton button) {
-		return instance.buttonPositions
-				.computeIfAbsent(area, ignored -> new EnumMap<>(MenuButton.class))
-				.computeIfAbsent(button, ignored -> defaultPosition(area, button));
+		return position(area, id(button));
+	}
+
+	public static ButtonPosition position(MenuArea area, String buttonId) {
+		return instance.buttonPositionsById
+				.computeIfAbsent(area, ignored -> new LinkedHashMap<>())
+				.computeIfAbsent(buttonId, ignored -> defaultPosition(area, buttonId));
 	}
 
 	public static ButtonPosition effectivePosition(MenuArea area, MenuButton button) {
@@ -49,49 +62,79 @@ public class BetterMenuButtonsConfig {
 		return isVanillaSocialSidePosition(area, effectivePosition) ? ButtonPosition.HIDDEN : effectivePosition;
 	}
 
+	public static ButtonPosition effectivePosition(MenuArea area, String buttonId) {
+		ButtonPosition position = position(area, buttonId);
+		ButtonPosition effectivePosition = position == ButtonPosition.VANILLA ? vanillaSlot(area, buttonId) : position;
+		return isVanillaSocialSidePosition(area, effectivePosition) ? ButtonPosition.HIDDEN : effectivePosition;
+	}
+
 	public static void setPosition(MenuArea area, MenuButton button, ButtonPosition position) {
-		instance.buttonPositions
-				.computeIfAbsent(area, ignored -> new EnumMap<>(MenuButton.class))
-				.put(button, position);
-		ensureOrdered(area, button);
+		setPosition(area, id(button), position);
+	}
+
+	public static void setPosition(MenuArea area, String buttonId, ButtonPosition position) {
+		instance.buttonPositionsById
+				.computeIfAbsent(area, ignored -> new LinkedHashMap<>())
+				.put(buttonId, position);
+		ensureOrdered(area, buttonId);
 	}
 
 	public static void moveWithSwap(MenuArea area, MenuButton button, ButtonPosition targetPosition) {
-		ButtonPosition target = targetPosition == ButtonPosition.VANILLA ? vanillaSlot(area, button) : targetPosition;
+		moveWithSwap(area, id(button), targetPosition);
+	}
+
+	public static void moveWithSwap(MenuArea area, String buttonId, ButtonPosition targetPosition) {
+		ButtonPosition target = targetPosition == ButtonPosition.VANILLA ? vanillaSlot(area, buttonId) : targetPosition;
 		if (target == ButtonPosition.HIDDEN) {
-			setPosition(area, button, target);
+			setPosition(area, buttonId, target);
 			return;
 		}
 
-		ButtonPosition previous = effectivePosition(area, button);
-		MenuButton occupant = occupantAt(area, target, button);
-		setPosition(area, button, target);
+		ButtonPosition previous = effectivePosition(area, buttonId);
+		String occupant = occupantAt(area, target, buttonId);
+		setPosition(area, buttonId, target);
 		if (occupant != null) {
 			setPosition(area, occupant, previous);
 		}
 	}
 
 	public static void moveToSharedPosition(MenuArea area, MenuButton button, ButtonPosition targetPosition) {
-		ButtonPosition target = targetPosition == ButtonPosition.VANILLA ? vanillaSlot(area, button) : targetPosition;
-		setPosition(area, button, target);
+		moveToSharedPosition(area, id(button), targetPosition);
+	}
+
+	public static void moveToSharedPosition(MenuArea area, String buttonId, ButtonPosition targetPosition) {
+		ButtonPosition target = targetPosition == ButtonPosition.VANILLA ? vanillaSlot(area, buttonId) : targetPosition;
+		setPosition(area, buttonId, target);
 		if (isVanillaIconSlot(area, target) || target.isSide()) {
-			moveToPositionOrder(area, button, target);
+			moveToPositionOrder(area, buttonId, target);
 		}
 	}
 
 	public static void moveToVanillaIconRow(MenuArea area, MenuButton button, int insertionIndex) {
-		ButtonPosition current = effectivePosition(area, button);
-		ButtonPosition target = isVanillaIconSlot(area, current) ? current : firstAvailableVanillaIconSlot(area, button);
-        moveToSharedRow(area, button, target, insertionIndex);
+		moveToVanillaIconRow(area, id(button), insertionIndex);
+	}
+
+	public static void moveToVanillaIconRow(MenuArea area, String buttonId, int insertionIndex) {
+		ButtonPosition current = effectivePosition(area, buttonId);
+		ButtonPosition target = isVanillaIconSlot(area, current) ? current : firstAvailableVanillaIconSlot(area, buttonId);
+        moveToSharedRow(area, buttonId, target, insertionIndex);
 	}
 
 	public static void moveToSharedRow(MenuArea area, MenuButton button, ButtonPosition position, int insertionIndex) {
-		setPosition(area, button, position);
-		moveToRowOrder(area, button, position, insertionIndex);
+		moveToSharedRow(area, id(button), position, insertionIndex);
+	}
+
+	public static void moveToSharedRow(MenuArea area, String buttonId, ButtonPosition position, int insertionIndex) {
+		setPosition(area, buttonId, position);
+		moveToRowOrder(area, buttonId, position, insertionIndex);
 	}
 
 	public static void swapButtons(MenuArea area, MenuButton first, MenuButton second) {
-		if (first == second) {
+		swapButtons(area, id(first), id(second));
+	}
+
+	public static void swapButtons(MenuArea area, String first, String second) {
+		if (first.equals(second)) {
 			return;
 		}
 
@@ -100,7 +143,7 @@ public class BetterMenuButtonsConfig {
 		setPosition(area, first, secondPosition);
 		setPosition(area, second, firstPosition);
 
-		List<MenuButton> order = instance.buttonOrder.computeIfAbsent(area, BetterMenuButtonsConfig::defaultButtonOrder);
+		List<String> order = instance.buttonOrderById.computeIfAbsent(area, BetterMenuButtonsConfig::defaultButtonOrderById);
 		int firstIndex = order.indexOf(first);
 		int secondIndex = order.indexOf(second);
 		if (firstIndex >= 0 && secondIndex >= 0) {
@@ -109,19 +152,19 @@ public class BetterMenuButtonsConfig {
 		}
 	}
 
-	private static void moveToRowOrder(MenuArea area, MenuButton button, ButtonPosition position, int insertionIndex) {
-		List<MenuButton> order = instance.buttonOrder.computeIfAbsent(area, BetterMenuButtonsConfig::defaultButtonOrder);
-		order.remove(button);
+	private static void moveToRowOrder(MenuArea area, String buttonId, ButtonPosition position, int insertionIndex) {
+		List<String> order = instance.buttonOrderById.computeIfAbsent(area, BetterMenuButtonsConfig::defaultButtonOrderById);
+		order.remove(buttonId);
 		boolean vanillaIconRow = isVanillaIconSlot(area, position);
 
 		int rowButtonIndex = 0;
 		int insertIndex = order.size();
 		int clampedInsertionIndex = Math.max(0, insertionIndex);
 		for (int index = 0; index < order.size(); index++) {
-			MenuButton orderedButton = order.get(index);
+			String orderedButton = order.get(index);
 			ButtonPosition orderedPosition = effectivePosition(area, orderedButton);
 			boolean sameRow = vanillaIconRow ? isVanillaIconSlot(area, orderedPosition) : orderedPosition == position;
-			if (!orderedButton.isAvailableIn(area) || !sameRow) {
+			if (!isAvailableIn(area, orderedButton) || !sameRow) {
 				continue;
 			}
 
@@ -134,15 +177,27 @@ public class BetterMenuButtonsConfig {
 			insertIndex = index + 1;
 		}
 
-		order.add(insertIndex, button);
+		order.add(insertIndex, buttonId);
 	}
 
 	public static List<MenuButton> orderedButtons(MenuArea area) {
-		List<MenuButton> order = instance.buttonOrder.computeIfAbsent(area, BetterMenuButtonsConfig::defaultButtonOrder);
-		order.removeIf(button -> !button.isAvailableIn(area));
-		for (MenuButton button : availableButtons(area)) {
-			if (!order.contains(button)) {
-				order.add(button);
+		List<String> ids = orderedButtonIds(area);
+		List<MenuButton> buttons = new ArrayList<>();
+		for (String id : ids) {
+			MenuButton button = vanillaButton(id);
+			if (button != null) {
+				buttons.add(button);
+			}
+		}
+		return List.copyOf(buttons);
+	}
+
+	public static List<String> orderedButtonIds(MenuArea area) {
+		List<String> order = instance.buttonOrderById.computeIfAbsent(area, BetterMenuButtonsConfig::defaultButtonOrderById);
+		order.removeIf(buttonId -> !isAvailableIn(area, buttonId));
+		for (String buttonId : availableButtonIds(area)) {
+			if (!order.contains(buttonId)) {
+				order.add(buttonId);
 			}
 		}
 		return List.copyOf(order);
@@ -161,9 +216,68 @@ public class BetterMenuButtonsConfig {
 		return buttons;
 	}
 
+	public static List<String> availableButtonIds(MenuArea area) {
+		List<String> buttons = new ArrayList<>();
+		for (MenuButton button : availableButtons(area)) {
+			buttons.add(id(button));
+		}
+		if (area == MenuArea.MAIN_MENU) {
+			List<CustomJoinButton> customButtons = instance == null || instance.customButtons == null ? List.of() : instance.customButtons;
+			for (CustomJoinButton button : customButtons) {
+				if (button.enabled) {
+					buttons.add(button.id);
+				}
+			}
+		}
+		return buttons;
+	}
+
+	public static List<CustomJoinButton> customButtons() {
+		return List.copyOf(instance.customButtons);
+	}
+
+	public static CustomJoinButton customButton(String id) {
+		for (CustomJoinButton button : instance.customButtons) {
+			if (button.id.equals(id)) {
+				return button;
+			}
+		}
+		return null;
+	}
+
+	public static CustomJoinButton addCustomButton(CustomJoinButton.TargetType targetType, String targetId, String label) {
+		CustomJoinButton button = new CustomJoinButton(CUSTOM_PREFIX + UUID.randomUUID(), label, targetType, targetId, true);
+		instance.customButtons.add(button);
+		setPosition(MenuArea.MAIN_MENU, button.id, ButtonPosition.BELOW_MENU);
+		moveToSharedRow(MenuArea.MAIN_MENU, button.id, ButtonPosition.BELOW_MENU, Integer.MAX_VALUE);
+		return button;
+	}
+
+	public static void removeCustomButton(String id) {
+		instance.customButtons.removeIf(button -> button.id.equals(id));
+		for (Map<String, ButtonPosition> positions : instance.buttonPositionsById.values()) {
+			positions.remove(id);
+		}
+		for (List<String> order : instance.buttonOrderById.values()) {
+			order.remove(id);
+		}
+	}
+
+	public static void renameCustomButton(String id, String label) {
+		CustomJoinButton button = customButton(id);
+		if (button != null && label != null && !label.isBlank()) {
+			button.label = label.trim();
+		}
+	}
+
 	public static boolean hasVanillaIconRowButtons(MenuArea area) {
 		for (MenuButton button : MenuButton.values()) {
 			if (button.isAvailableIn(area) && isVanillaIconSlot(area, effectivePosition(area, button))) {
+				return true;
+			}
+		}
+		for (CustomJoinButton button : instance.customButtons) {
+			if (button.enabled && isVanillaIconSlot(area, effectivePosition(area, button.id))) {
 				return true;
 			}
 		}
@@ -171,7 +285,7 @@ public class BetterMenuButtonsConfig {
 	}
 
 	public static boolean isOccupied(MenuArea area, ButtonPosition position, MenuButton except) {
-		return occupantAt(area, position, except) != null;
+		return occupantAt(area, position, id(except)) != null;
 	}
 
 	public static void reset() {
@@ -179,8 +293,8 @@ public class BetterMenuButtonsConfig {
 	}
 
 	public static void reset(MenuArea area) {
-		instance.buttonPositions.put(area, defaultPositions(area));
-		instance.buttonOrder.put(area, defaultButtonOrder(area));
+		instance.buttonPositionsById.put(area, defaultPositionsById(area));
+		instance.buttonOrderById.put(area, defaultButtonOrderById(area));
 	}
 
 	public static void save() {
@@ -188,6 +302,8 @@ public class BetterMenuButtonsConfig {
 		try {
 			Files.createDirectories(configPath.getParent());
 			try (Writer writer = Files.newBufferedWriter(configPath)) {
+				instance.buttonPositions = null;
+				instance.buttonOrder = null;
 				GSON.toJson(instance, writer);
 			}
 		} catch (IOException exception) {
@@ -199,34 +315,38 @@ public class BetterMenuButtonsConfig {
 		return PlatformHooks.configDir().resolve("better-menu-buttons.json");
 	}
 
-	private static EnumMap<MenuArea, EnumMap<MenuButton, ButtonPosition>> createDefaultPositions() {
-		EnumMap<MenuArea, EnumMap<MenuButton, ButtonPosition>> positions = new EnumMap<>(MenuArea.class);
+	private static EnumMap<MenuArea, Map<String, ButtonPosition>> createDefaultPositionsById() {
+		EnumMap<MenuArea, Map<String, ButtonPosition>> positions = new EnumMap<>(MenuArea.class);
 		for (MenuArea area : MenuArea.values()) {
-			positions.put(area, defaultPositions(area));
+			positions.put(area, defaultPositionsById(area));
 		}
 		return positions;
 	}
 
-	private static EnumMap<MenuButton, ButtonPosition> defaultPositions(MenuArea area) {
-		EnumMap<MenuButton, ButtonPosition> positions = new EnumMap<>(MenuButton.class);
+	private static Map<String, ButtonPosition> defaultPositionsById(MenuArea area) {
+		Map<String, ButtonPosition> positions = new LinkedHashMap<>();
 		for (MenuButton button : MenuButton.values()) {
 			if (button.isAvailableIn(area)) {
-				positions.put(button, defaultPosition(area, button));
+				positions.put(id(button), defaultPosition(area, button));
 			}
 		}
 		return positions;
 	}
 
-	private static EnumMap<MenuArea, List<MenuButton>> createDefaultButtonOrder() {
-		EnumMap<MenuArea, List<MenuButton>> order = new EnumMap<>(MenuArea.class);
+	private static EnumMap<MenuArea, List<String>> createDefaultButtonOrderById() {
+		EnumMap<MenuArea, List<String>> order = new EnumMap<>(MenuArea.class);
 		for (MenuArea area : MenuArea.values()) {
-			order.put(area, defaultButtonOrder(area));
+			order.put(area, defaultButtonOrderById(area));
 		}
 		return order;
 	}
 
-	private static List<MenuButton> defaultButtonOrder(MenuArea area) {
-		return new ArrayList<>(availableButtons(area));
+	private static List<String> defaultButtonOrderById(MenuArea area) {
+		List<String> buttons = new ArrayList<>();
+		for (MenuButton button : availableButtons(area)) {
+			buttons.add(id(button));
+		}
+		return buttons;
 	}
 
 	private static ButtonPosition defaultPosition(MenuArea area, MenuButton button) {
@@ -240,6 +360,14 @@ public class BetterMenuButtonsConfig {
 	}
 
 	public static ButtonPosition vanillaSlot(MenuArea area, MenuButton button) {
+		return vanillaSlot(area, id(button));
+	}
+
+	public static ButtonPosition vanillaSlot(MenuArea area, String buttonId) {
+		MenuButton button = vanillaButton(buttonId);
+		if (button == null) {
+			return ButtonPosition.BELOW_MENU;
+		}
 		return switch (area) {
 			case MAIN_MENU -> switch (button) {
 				case BETTER_MENU_BUTTONS -> ButtonPosition.HIDDEN;
@@ -284,16 +412,16 @@ public class BetterMenuButtonsConfig {
 		};
 	}
 
-	private static MenuButton occupantAt(MenuArea area, ButtonPosition position, MenuButton except) {
-		for (MenuButton button : orderedButtons(area)) {
-			if (button != except && button.isAvailableIn(area) && effectivePosition(area, button) == position) {
+	private static String occupantAt(MenuArea area, ButtonPosition position, String except) {
+		for (String button : orderedButtonIds(area)) {
+			if (!button.equals(except) && isAvailableIn(area, button) && effectivePosition(area, button) == position) {
 				return button;
 			}
 		}
 		return null;
 	}
 
-	private static ButtonPosition firstAvailableVanillaIconSlot(MenuArea area, MenuButton except) {
+	private static ButtonPosition firstAvailableVanillaIconSlot(MenuArea area, String except) {
 		for (int slot = 0; slot < 5; slot++) {
 			ButtonPosition position = iconSlotPosition(slot);
 			if (occupantAt(area, position, except) == null) {
@@ -324,15 +452,15 @@ public class BetterMenuButtonsConfig {
 		};
 	}
 
-	private static void ensureOrdered(MenuArea area, MenuButton button) {
-		List<MenuButton> order = instance.buttonOrder.computeIfAbsent(area, BetterMenuButtonsConfig::defaultButtonOrder);
-		if (button.isAvailableIn(area) && !order.contains(button)) {
-			order.add(button);
+	private static void ensureOrdered(MenuArea area, String buttonId) {
+		List<String> order = instance.buttonOrderById.computeIfAbsent(area, BetterMenuButtonsConfig::defaultButtonOrderById);
+		if (isAvailableIn(area, buttonId) && !order.contains(buttonId)) {
+			order.add(buttonId);
 		}
 	}
 
-	private static void moveToPositionOrder(MenuArea area, MenuButton button, ButtonPosition position) {
-		List<MenuButton> order = instance.buttonOrder.computeIfAbsent(area, BetterMenuButtonsConfig::defaultButtonOrder);
+	private static void moveToPositionOrder(MenuArea area, String button, ButtonPosition position) {
+		List<String> order = instance.buttonOrderById.computeIfAbsent(area, BetterMenuButtonsConfig::defaultButtonOrderById);
 		order.remove(button);
 
 		int insertIndex = order.size();
@@ -345,24 +473,116 @@ public class BetterMenuButtonsConfig {
 		order.add(insertIndex, button);
 	}
 
-	private static int firstButtonAt(MenuArea area, List<MenuButton> order, ButtonPosition position) {
+	private static int firstButtonAt(MenuArea area, List<String> order, ButtonPosition position) {
 		for (int index = 0; index < order.size(); index++) {
-			MenuButton button = order.get(index);
-			if (button.isAvailableIn(area) && effectivePosition(area, button) == position) {
+			String button = order.get(index);
+			if (isAvailableIn(area, button) && effectivePosition(area, button) == position) {
 				return index;
 			}
 		}
 		return order.size();
 	}
 
-	private static int lastButtonAt(MenuArea area, List<MenuButton> order, ButtonPosition position) {
+	private static int lastButtonAt(MenuArea area, List<String> order, ButtonPosition position) {
 		for (int index = order.size() - 1; index >= 0; index--) {
-			MenuButton button = order.get(index);
-			if (button.isAvailableIn(area) && effectivePosition(area, button) == position) {
+			String button = order.get(index);
+			if (isAvailableIn(area, button) && effectivePosition(area, button) == position) {
 				return index;
 			}
 		}
 		return order.size() - 1;
+	}
+
+	public static String id(MenuButton button) {
+		return VANILLA_PREFIX + button.name();
+	}
+
+	public static boolean isCustomId(String buttonId) {
+		return buttonId != null && buttonId.startsWith(CUSTOM_PREFIX);
+	}
+
+	public static MenuButton vanillaButton(String buttonId) {
+		if (buttonId == null || !buttonId.startsWith(VANILLA_PREFIX)) {
+			return null;
+		}
+		try {
+			return MenuButton.valueOf(buttonId.substring(VANILLA_PREFIX.length()));
+		} catch (IllegalArgumentException exception) {
+			return null;
+		}
+	}
+
+	public static boolean isAvailableIn(MenuArea area, String buttonId) {
+		MenuButton vanillaButton = vanillaButton(buttonId);
+		if (vanillaButton != null) {
+			return vanillaButton.isAvailableIn(area);
+		}
+		return area == MenuArea.MAIN_MENU && customButton(buttonId) != null;
+	}
+
+	private static ButtonPosition defaultPosition(MenuArea area, String buttonId) {
+		MenuButton vanillaButton = vanillaButton(buttonId);
+		return vanillaButton == null ? ButtonPosition.BELOW_MENU : defaultPosition(area, vanillaButton);
+	}
+
+	private void migrate() {
+		if (this.buttonPositionsById == null) {
+			this.buttonPositionsById = createDefaultPositionsById();
+		}
+		if (this.buttonOrderById == null) {
+			this.buttonOrderById = createDefaultButtonOrderById();
+		}
+		if (this.customButtons == null) {
+			this.customButtons = new ArrayList<>();
+		}
+		if (this.buttonPositions != null) {
+			for (Map.Entry<MenuArea, EnumMap<MenuButton, ButtonPosition>> areaEntry : this.buttonPositions.entrySet()) {
+				Map<String, ButtonPosition> positions = this.buttonPositionsById.computeIfAbsent(areaEntry.getKey(), ignored -> new LinkedHashMap<>());
+				for (Map.Entry<MenuButton, ButtonPosition> buttonEntry : areaEntry.getValue().entrySet()) {
+					positions.putIfAbsent(id(buttonEntry.getKey()), buttonEntry.getValue());
+				}
+			}
+			this.buttonPositions = null;
+		}
+		if (this.buttonOrder != null) {
+			for (Map.Entry<MenuArea, List<MenuButton>> areaEntry : this.buttonOrder.entrySet()) {
+				List<String> order = this.buttonOrderById.computeIfAbsent(areaEntry.getKey(), ignored -> new ArrayList<>());
+				if (order.isEmpty()) {
+					for (MenuButton button : areaEntry.getValue()) {
+						order.add(id(button));
+					}
+				}
+			}
+			this.buttonOrder = null;
+		}
+		for (MenuArea area : MenuArea.values()) {
+			this.buttonPositionsById.computeIfAbsent(area, BetterMenuButtonsConfig::defaultPositionsById);
+			this.buttonOrderById.computeIfAbsent(area, BetterMenuButtonsConfig::defaultButtonOrderById);
+		}
+	}
+
+	public static class CustomJoinButton {
+		public String id;
+		public String label;
+		public TargetType targetType;
+		public String targetId;
+		public boolean enabled = true;
+
+		public CustomJoinButton() {
+		}
+
+		private CustomJoinButton(String id, String label, TargetType targetType, String targetId, boolean enabled) {
+			this.id = id;
+			this.label = label;
+			this.targetType = targetType;
+			this.targetId = targetId;
+			this.enabled = enabled;
+		}
+
+		public enum TargetType {
+			SERVER,
+			WORLD
+		}
 	}
 
 	private static void saveDefault() {

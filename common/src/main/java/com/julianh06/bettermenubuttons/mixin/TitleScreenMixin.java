@@ -5,6 +5,8 @@ import com.julianh06.bettermenubuttons.config.MenuButton;
 import com.julianh06.bettermenubuttons.config.BetterMenuButtonsConfigScreen;
 import com.julianh06.bettermenubuttons.config.BetterMenuButtonsConfig;
 import com.julianh06.bettermenubuttons.config.BetterMenuButtonsIconButton;
+import com.julianh06.bettermenubuttons.config.CustomJoinIconButton;
+import com.julianh06.bettermenubuttons.config.CustomJoinTargets;
 import com.julianh06.bettermenubuttons.compat.ModMenuIntegration;
 import com.julianh06.bettermenubuttons.layout.SocialButtonLayout;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -14,10 +16,14 @@ import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.storage.LevelSummary;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -28,8 +34,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Mixin(TitleScreen.class)
 public abstract class TitleScreenMixin extends Screen {
@@ -40,6 +47,8 @@ public abstract class TitleScreenMixin extends Screen {
 
 	@Shadow private FriendsButton friends;
 	@Unique private AbstractWidget better_menu_buttons$configButton;
+	@Unique private final List<CustomJoinIconButton> better_menu_buttons$customButtons = new ArrayList<>();
+	@Unique private final Map<CustomJoinIconButton, String> better_menu_buttons$customButtonIds = new HashMap<>();
 	@Unique private boolean better_menu_buttons$layoutApplied;
 	@Unique private int better_menu_buttons$modMenuLayoutState;
 
@@ -50,6 +59,11 @@ public abstract class TitleScreenMixin extends Screen {
 	@Inject(method = "init", at = @At("TAIL"))
 	private void better_menu_buttons$layoutFriendsButton(CallbackInfo callbackInfo) {
 		this.better_menu_buttons$layoutApplied = false;
+		for (CustomJoinIconButton button : this.better_menu_buttons$customButtons) {
+			button.close();
+		}
+		this.better_menu_buttons$customButtons.clear();
+		this.better_menu_buttons$customButtonIds.clear();
 		this.better_menu_buttons$modMenuLayoutState = ModMenuIntegration.buttonLayoutState(MenuArea.MAIN_MENU);
 		this.better_menu_buttons$configButton = this.addRenderableWidget(new BetterMenuButtonsIconButton(0, 0, button -> {
 			if (this.minecraft != null) {
@@ -57,6 +71,7 @@ public abstract class TitleScreenMixin extends Screen {
 			}
 		}));
 		this.better_menu_buttons$configButton.setTooltip(Tooltip.create(BetterMenuButtonsIconButton.label()));
+		this.better_menu_buttons$addCustomJoinButtons();
 	}
 
 	@Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true)
@@ -75,12 +90,15 @@ public abstract class TitleScreenMixin extends Screen {
 
 		this.better_menu_buttons$layoutApplied = true;
 		this.better_menu_buttons$modMenuLayoutState = modMenuLayoutState;
-		EnumMap<MenuButton, AbstractWidget> moveableButtons = new EnumMap<>(MenuButton.class);
+		java.util.LinkedHashMap<String, AbstractWidget> moveableButtons = new java.util.LinkedHashMap<>();
 		if (this.better_menu_buttons$configButton != null) {
-			moveableButtons.put(MenuButton.BETTER_MENU_BUTTONS, this.better_menu_buttons$configButton);
+			moveableButtons.put(BetterMenuButtonsConfig.id(MenuButton.BETTER_MENU_BUTTONS), this.better_menu_buttons$configButton);
 		}
 		if (this.friends != null) {
-			moveableButtons.put(MenuButton.FRIENDS, this.friends);
+			moveableButtons.put(BetterMenuButtonsConfig.id(MenuButton.FRIENDS), this.friends);
+		}
+		for (CustomJoinIconButton button : this.better_menu_buttons$customButtons) {
+			moveableButtons.put(this.better_menu_buttons$customButtonIds.get(button), button);
 		}
 		List<AbstractWidget> vanillaMenuButtons = new ArrayList<>();
 		List<Integer> iconRowYs = new ArrayList<>();
@@ -97,7 +115,7 @@ public abstract class TitleScreenMixin extends Screen {
 
 			MenuButton buttonId = buttonIdFor(widget);
 			if (buttonId != null) {
-				moveableButtons.put(buttonId, widget);
+				moveableButtons.put(BetterMenuButtonsConfig.id(buttonId), widget);
 			}
 			if (this.isIconRowWidget(widget, buttonId)) {
 				iconRowYs.add(widget.getY());
@@ -139,7 +157,64 @@ public abstract class TitleScreenMixin extends Screen {
 		}
 
 		SocialButtonLayout.MenuGeometry geometry = SocialButtonLayout.geometry(MenuArea.MAIN_MENU, menuTop, menuBottom, menuRowYs(vanillaMenuButtons), iconRowY(iconRowYs));
-		SocialButtonLayout.apply(this.width, this.height, menuLeft, menuRight, geometry, MenuArea.MAIN_MENU, moveableButtons);
+		SocialButtonLayout.applyById(this.width, this.height, menuLeft, menuRight, geometry, MenuArea.MAIN_MENU, moveableButtons);
+	}
+
+	@Unique
+	private void better_menu_buttons$addCustomJoinButtons() {
+		if (this.minecraft == null) {
+			return;
+		}
+		for (BetterMenuButtonsConfig.CustomJoinButton config : BetterMenuButtonsConfig.customButtons()) {
+			CustomJoinIconButton button = this.addRenderableWidget(new CustomJoinIconButton(0, 0, config, ignored -> this.better_menu_buttons$join(config)));
+			Component tooltip = Component.literal(config.label);
+			if (!this.better_menu_buttons$targetAvailable(config)) {
+				button.active = false;
+				tooltip = Component.literal(config.label + " (missing)");
+			}
+			button.setTooltip(Tooltip.create(tooltip));
+			this.better_menu_buttons$customButtons.add(button);
+			this.better_menu_buttons$customButtonIds.put(button, config.id);
+		}
+	}
+
+	@Unique
+	private boolean better_menu_buttons$targetAvailable(BetterMenuButtonsConfig.CustomJoinButton config) {
+		if (this.minecraft == null) {
+			return false;
+		}
+		if (config.targetType == BetterMenuButtonsConfig.CustomJoinButton.TargetType.SERVER) {
+			return CustomJoinTargets.server(this.minecraft, config.targetId) != null;
+		}
+		LevelSummary world = CustomJoinTargets.world(this.minecraft, config.targetId);
+		return world != null && world.primaryActionActive();
+	}
+
+	@Unique
+	private void better_menu_buttons$join(BetterMenuButtonsConfig.CustomJoinButton config) {
+		if (this.minecraft == null) {
+			return;
+		}
+		if (config.targetType == BetterMenuButtonsConfig.CustomJoinButton.TargetType.SERVER) {
+			ServerData server = CustomJoinTargets.server(this.minecraft, config.targetId);
+			if (server != null) {
+				ConnectScreen.startConnecting(this, this.minecraft, ServerAddress.parseString(server.ip), server, false, null);
+			}
+			return;
+		}
+		LevelSummary world = CustomJoinTargets.world(this.minecraft, config.targetId);
+		if (world != null && world.primaryActionActive()) {
+			this.minecraft.createWorldOpenFlows().openWorld(world.getLevelId(), this::rebuildWidgets);
+		}
+	}
+
+	@Inject(method = "removed", at = @At("TAIL"))
+	private void better_menu_buttons$closeCustomJoinButtons(CallbackInfo callbackInfo) {
+		for (CustomJoinIconButton button : this.better_menu_buttons$customButtons) {
+			button.close();
+		}
+		this.better_menu_buttons$customButtons.clear();
+		this.better_menu_buttons$customButtonIds.clear();
 	}
 
 	@Unique

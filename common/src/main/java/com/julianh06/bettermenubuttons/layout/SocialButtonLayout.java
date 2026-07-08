@@ -68,6 +68,14 @@ public class SocialButtonLayout {
 	}
 
 	public static void apply(int screenWidth, int screenHeight, int menuLeft, int menuRight, MenuGeometry geometry, MenuArea area, Map<MenuButton, AbstractWidget> buttons) {
+		Map<String, AbstractWidget> buttonsById = new java.util.LinkedHashMap<>();
+		for (Map.Entry<MenuButton, AbstractWidget> entry : buttons.entrySet()) {
+			buttonsById.put(BetterMenuButtonsConfig.id(entry.getKey()), entry.getValue());
+		}
+		applyById(screenWidth, screenHeight, menuLeft, menuRight, geometry, area, buttonsById);
+	}
+
+	public static void applyById(int screenWidth, int screenHeight, int menuLeft, int menuRight, MenuGeometry geometry, MenuArea area, Map<String, AbstractWidget> buttons) {
 		if (buttons.isEmpty()) {
 			return;
 		}
@@ -77,7 +85,7 @@ public class SocialButtonLayout {
 		List<AbstractWidget> vanillaIconButtons = new ArrayList<>();
 		List<AbstractWidget> belowMenuButtons = new ArrayList<>();
 
-		for (MenuButton buttonId : BetterMenuButtonsConfig.orderedButtons(area)) {
+		for (String buttonId : BetterMenuButtonsConfig.orderedButtonIds(area)) {
 			AbstractWidget button = buttons.get(buttonId);
 			if (button == null) {
 				continue;
@@ -96,7 +104,7 @@ public class SocialButtonLayout {
 			}
 		}
 
-		for (MenuButton buttonId : BetterMenuButtonsConfig.orderedButtons(area)) {
+		for (String buttonId : BetterMenuButtonsConfig.orderedButtonIds(area)) {
 			AbstractWidget button = buttons.get(buttonId);
 			if (button == null) {
 				continue;
