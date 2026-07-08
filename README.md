@@ -14,5 +14,5 @@ Supported Minecraft versions:
 - Quilt: 26.2-26.3-Snapshot3
 - Forge: 26.2
 - Neoforge: 26.2
-- 
+
 You can find more information here: https://modrinth.com/mod/better-menu-buttons
