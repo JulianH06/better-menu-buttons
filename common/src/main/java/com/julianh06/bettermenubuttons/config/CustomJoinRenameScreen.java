@@ -51,7 +51,8 @@ public class CustomJoinRenameScreen extends Screen {
 	@Override
 	public void onClose() {
 		if (this.minecraft != null) {
-			this.minecraft.setScreenAndShow(this.parent);
+			Screen screen = this.parent;
+			this.minecraft.setScreenAndShow(screen);
 		}
 	}
 }

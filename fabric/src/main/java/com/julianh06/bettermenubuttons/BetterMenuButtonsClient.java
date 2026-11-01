@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 
 public class BetterMenuButtonsClient implements ClientModInitializer {
 	@Override
@@ -22,7 +23,10 @@ public class BetterMenuButtonsClient implements ClientModInitializer {
 	}
 
 	private static int openConfigScreen(Minecraft client) {
-		client.schedule(() -> client.setScreenAndShow(new BetterMenuButtonsConfigScreen(null)));
+		client.schedule(() -> {
+			Screen screen = new BetterMenuButtonsConfigScreen(null);
+			client.setScreenAndShow(screen);
+		});
 		return 1;
 	}
 

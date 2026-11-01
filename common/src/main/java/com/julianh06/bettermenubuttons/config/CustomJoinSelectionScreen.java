@@ -82,7 +82,8 @@ public class CustomJoinSelectionScreen extends Screen {
 	public void onClose() {
 		this.closeEntryButtons();
 		if (this.minecraft != null) {
-			this.minecraft.setScreenAndShow(this.parent);
+			Screen screen = this.parent;
+			this.minecraft.setScreenAndShow(screen);
 		}
 	}
 
