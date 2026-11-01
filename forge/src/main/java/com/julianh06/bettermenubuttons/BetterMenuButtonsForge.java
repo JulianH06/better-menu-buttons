@@ -32,7 +32,7 @@ public class BetterMenuButtonsForge {
 	private static int openConfigScreen(Minecraft client) {
 		client.schedule(() -> {
 			Screen screen = new BetterMenuButtonsConfigScreen(null);
-			client.setScreenAndShow(screen);
+			client.gui.setScreen(screen);
 		});
 		return 1;
 	}

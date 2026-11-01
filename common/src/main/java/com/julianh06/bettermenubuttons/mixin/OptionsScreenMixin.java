@@ -38,7 +38,7 @@ public abstract class OptionsScreenMixin extends Screen {
 		BetterMenuButtonsIconButton configButton = this.addRenderableWidget(new BetterMenuButtonsIconButton(0, 0, button -> {
 			if (this.minecraft != null) {
 				Screen screen = new BetterMenuButtonsConfigScreen(this, MenuArea.MAIN_MENU);
-				this.minecraft.setScreenAndShow(screen);
+				this.minecraft.getInstance().gui.setScreen(screen);
 			}
 		}));
 		configButton.setTooltip(Tooltip.create(BetterMenuButtonsIconButton.label()));
@@ -48,7 +48,7 @@ public abstract class OptionsScreenMixin extends Screen {
 			ModMenuIconButton modsButton = this.addRenderableWidget(new ModMenuIconButton(0, 0, button -> {
 				if (this.minecraft != null) {
 					Screen screen = ModMenuIntegration.createModsScreen(this);
-					this.minecraft.setScreenAndShow(screen);
+					this.minecraft.getInstance().gui.setScreen(screen);
 				}
 			}));
 			modsButton.setTooltip(Tooltip.create(Component.literal("Mods")));

@@ -52,7 +52,7 @@ public class CustomJoinRenameScreen extends Screen {
 	public void onClose() {
 		if (this.minecraft != null) {
 			Screen screen = this.parent;
-			this.minecraft.setScreenAndShow(screen);
+			this.minecraft.getInstance().gui.setScreen(screen);
 		}
 	}
 }

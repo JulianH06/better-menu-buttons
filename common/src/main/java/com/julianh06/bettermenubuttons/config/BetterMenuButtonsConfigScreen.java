@@ -501,11 +501,11 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 				BetterMenuButtonsConfig.addCustomButton(BetterMenuButtonsConfig.CustomJoinButton.TargetType.SERVER, server.ip, server.name);
 				BetterMenuButtonsConfig.save();
 				Screen screen = new BetterMenuButtonsConfigScreen(this.parent, MenuArea.MAIN_MENU);
-				this.minecraft.setScreenAndShow(screen);
+				this.minecraft.getInstance().gui.setScreen(screen);
 			}));
 		}
 		Screen screen = new CustomJoinSelectionScreen(this, Component.literal("Add server button"), entries);
-		this.minecraft.setScreenAndShow(screen);
+		this.minecraft.getInstance().gui.setScreen(screen);
 	}
 
 	private void openAddWorldScreen() {
@@ -518,11 +518,11 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 				BetterMenuButtonsConfig.addCustomButton(BetterMenuButtonsConfig.CustomJoinButton.TargetType.WORLD, world.getLevelId(), world.getLevelName());
 				BetterMenuButtonsConfig.save();
 				Screen screen = new BetterMenuButtonsConfigScreen(this.parent, MenuArea.MAIN_MENU);
-				this.minecraft.setScreenAndShow(screen);
+				this.minecraft.getInstance().gui.setScreen(screen);
 			}));
 		}
 		Screen screen = new CustomJoinSelectionScreen(this, Component.literal("Add world button"), entries);
-		this.minecraft.setScreenAndShow(screen);
+		this.minecraft.getInstance().gui.setScreen(screen);
 	}
 
 	private void openRemoveCustomButtonScreen() {
@@ -535,11 +535,11 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 				BetterMenuButtonsConfig.removeCustomButton(customButton.id);
 				BetterMenuButtonsConfig.save();
 				Screen screen = new BetterMenuButtonsConfigScreen(this.parent, MenuArea.MAIN_MENU);
-				this.minecraft.setScreenAndShow(screen);
+				this.minecraft.getInstance().gui.setScreen(screen);
 			}));
 		}
 		Screen screen = new CustomJoinSelectionScreen(this, Component.literal("Remove custom button"), entries);
-		this.minecraft.setScreenAndShow(screen);
+		this.minecraft.getInstance().gui.setScreen(screen);
 	}
 
 	private void openRenameCustomButtonScreen() {
@@ -550,11 +550,11 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 		for (BetterMenuButtonsConfig.CustomJoinButton customButton : BetterMenuButtonsConfig.customButtons()) {
 			entries.add(new CustomJoinSelectionScreen.Entry(Component.literal(customButton.label), customButton.targetType, customButton.targetId, () -> {
 				Screen screen = new CustomJoinRenameScreen(this, customButton.id, customButton.label);
-				this.minecraft.setScreenAndShow(screen);
+				this.minecraft.getInstance().gui.setScreen(screen);
 			}));
 		}
 		Screen screen = new CustomJoinSelectionScreen(this, Component.literal("Rename custom button"), entries);
-		this.minecraft.setScreenAndShow(screen);
+		this.minecraft.getInstance().gui.setScreen(screen);
 	}
 
 	private PreviewLayout previewLayout() {
@@ -571,7 +571,7 @@ public class BetterMenuButtonsConfigScreen extends Screen {
 			} else {
 				screen = this.parent;
 			}
-			this.minecraft.setScreenAndShow(screen);
+			this.minecraft.getInstance().gui.setScreen(screen);
 		}
 	}
 

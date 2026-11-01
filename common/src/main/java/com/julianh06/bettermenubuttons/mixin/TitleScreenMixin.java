@@ -68,7 +68,7 @@ public abstract class TitleScreenMixin extends Screen {
 		this.better_menu_buttons$configButton = this.addRenderableWidget(new BetterMenuButtonsIconButton(0, 0, button -> {
 			if (this.minecraft != null) {
 				Screen screen = new BetterMenuButtonsConfigScreen(this, MenuArea.MAIN_MENU);
-				this.minecraft.setScreenAndShow(screen);
+				this.minecraft.getInstance().gui.setScreen(screen);
 			}
 		}));
 		this.better_menu_buttons$configButton.setTooltip(Tooltip.create(BetterMenuButtonsIconButton.label()));
