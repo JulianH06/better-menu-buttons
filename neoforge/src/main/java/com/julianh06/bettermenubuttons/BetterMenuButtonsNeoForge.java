@@ -4,6 +4,7 @@ import com.julianh06.bettermenubuttons.config.BetterMenuButtonsConfigScreen;
 import com.julianh06.bettermenubuttons.platform.Platform;
 import com.julianh06.bettermenubuttons.platform.PlatformHooks;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.commands.Commands;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
@@ -30,7 +31,10 @@ public class BetterMenuButtonsNeoForge {
 	}
 
 	private static int openConfigScreen(Minecraft client) {
-		client.schedule(() -> client.setScreenAndShow(new BetterMenuButtonsConfigScreen(null)));
+		client.schedule(() -> {
+			Screen screen = new BetterMenuButtonsConfigScreen(null);
+			client.gui.setScreen(screen);
+		});
 		return 1;
 	}
 

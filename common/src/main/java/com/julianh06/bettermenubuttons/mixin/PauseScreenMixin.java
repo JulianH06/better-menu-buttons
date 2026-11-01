@@ -55,7 +55,8 @@ public abstract class PauseScreenMixin extends Screen {
 		this.better_menu_buttons$modMenuLayoutState = ModMenuIntegration.buttonLayoutState(MenuArea.PAUSE_MENU);
 		this.better_menu_buttons$configButton = this.addRenderableWidget(new BetterMenuButtonsIconButton(0, 0, button -> {
 			if (this.minecraft != null) {
-				this.minecraft.setScreenAndShow(new BetterMenuButtonsConfigScreen(this, MenuArea.PAUSE_MENU));
+				Screen screen = new BetterMenuButtonsConfigScreen(this, MenuArea.PAUSE_MENU);
+				this.minecraft.getInstance().gui.setScreen(screen);
 			}
 		}));
 		this.better_menu_buttons$configButton.setTooltip(Tooltip.create(BetterMenuButtonsIconButton.label()));
